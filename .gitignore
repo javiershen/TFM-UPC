@@ -1,0 +1,38 @@
+# Emacs backup files
+*~
+*#
+.#*
+# Vim file artifacts
+.*.sw*
+.DS_Store
+.project
+# omit Go vendor directories
+vendor/
+.vscode
+.gradle
+.idea
+# Dependency directories
+node_modules/
+# Ignore Gradle build output directory
+build
+package-lock.json
+
+# Eclipse
+.classpath
+.settings
+
+# installed Fabric binaries etc.
+bin/
+builders/
+config/
+external-chaincode/
+install-fabric.sh
+
+# Ignore all `library.jar` in `bin` dir
+*/bin/library.jar
+
+# Ignore a file with extension
+relative/path/to/dir/filename.extension
+
+# Ignore a file without extension
+relative/path/to/dir/anotherfile
