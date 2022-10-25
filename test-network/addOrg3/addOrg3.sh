@@ -164,11 +164,11 @@ function addOrg3 () {
     fatalln "ERROR !!!! Unable to create config tx"
   fi
 
-  infoln "Joining Org3 peers to network"
-  ${CONTAINER_CLI} exec cli ./scripts/org3-scripts/joinChannel.sh $CHANNEL_NAME $CLI_DELAY $CLI_TIMEOUT $VERBOSE
-  if [ $? -ne 0 ]; then
-    fatalln "ERROR !!!! Unable to join Org3 peers to network"
-  fi
+  # infoln "Joining Org3 peers to network"
+  # ${CONTAINER_CLI} exec cli ./scripts/org3-scripts/joinChannel.sh $CHANNEL_NAME $CLI_DELAY $CLI_TIMEOUT $VERBOSE
+  # if [ $? -ne 0 ]; then
+  #   fatalln "ERROR !!!! Unable to join Org3 peers to network"
+  # fi
 }
 
 function joinChannel () {
