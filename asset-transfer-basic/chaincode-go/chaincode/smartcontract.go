@@ -16,9 +16,9 @@ type SmartContract struct {
 //Insert struct field in alphabetic order => to achieve determinism across languages
 // golang keeps the order when marshal to json but doesn't order automatically
 type Asset struct {
+	ID             string `json:"ID"`
 	MedType	       int    `json:"MedType"`
 	Medicament     string `json:"Medicament"`
-	ID             string `json:"ID"`
 	Owner          string `json:"Owner"`
 	Size           int    `json:"Size"`
 }
@@ -64,7 +64,7 @@ func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface,
 		Medicament:     medicament,
 		Size:           size,
 		Owner:          owner,
-		MedType: medType,
+		MedType: 		medType,
 	}
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
