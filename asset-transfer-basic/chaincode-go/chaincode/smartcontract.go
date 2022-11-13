@@ -6,9 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	//"github.com/hyperledger/fabric-contract-api-go@v1.2.0/contractapi"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
-	//"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
 // SmartContract provides functions for managing an Asset
@@ -32,87 +30,106 @@ type Entity_User struct {
 	Password  string `json:"Password"`
 }
 
+type MedicamentDates struct {
+	DispatchDate     string `json:"DispatchDate"`
+	DispenseDate     string `json:"DispenseDate"`
+	ReceiveDate      string `json:"ReceiveDate"`
+	RegistrationDate string `json:"RegistrationDate"`
+}
+
 type Medicament struct {
-	Expiration_Month int    `json:"Expiration_Month"`
-	Expiration_Year  int    `json:"Expiration_Year"`
-	Lot_Number       string `json:"Lot_Number"`
-	Medicament_Name  string `json:"Medicament_Name"`
-	Product_Code     int    `json:"Product_Code"`
-	Serial_Number    string `json:"Serial_Number"`
-	Status           int    `json:"Status"` // 1: creado | 2: despachado de lab | 3: recibido por farmacia | 4: dispensado | 5: indispensable por motivo que sea
-	Producer_Lab     string `json:"Producer_Lab"`
-	Seller_Pharmacy  string `json:"Seller_Pharmacy"`
-	Current_Owner    string `json:"Current_Owner"`
+	Current_Owner    string          `json:"Current_Owner"`
+	Dates            MedicamentDates `json:"Dates"`
+	Expiration_Month int             `json:"Expiration_Month"`
+	Expiration_Year  int             `json:"Expiration_Year"`
+	Lot_Number       string          `json:"Lot_Number"`
+	Medicament_Name  string          `json:"Medicament_Name"`
+	Producer_Lab     string          `json:"Producer_Lab"`
+	Product_Code     int             `json:"Product_Code"`
+	Seller_Pharmacy  string          `json:"Seller_Pharmacy"`
+	Serial_Number    string          `json:"Serial_Number"`
+	Status           int             `json:"Status"` // 1: creado | 2: despachado de lab | 3: recibido por farmacia | 4: dispensado | 5: indispensable por motivo que sea
 }
 
 // invoke function to call tracking points functions
 func (s *SmartContract) InvokeTrackingPoint(ctx contractapi.TransactionContextInterface) error {
 	args := ctx.GetStub().GetStringArgs()
-
-	function := args[1]
-	userID := args[2]
-	entityID := args[3]
-	accessible, err := s.isFunctionAccessible(ctx, function, userID, entityID)
+	correctArgs, err := s.areArgumentsCorrect(ctx, args[1:]) //first argument is Invoke function, we don't need it
 	if err != nil {
 		return err
 	}
-	if accessible {
-		allArgs := args[4:]
-		correctArgs, err := s.areArgumentsCorrect(ctx, function, allArgs)
+	if correctArgs {
+		function := args[1]
+		userID := args[2]
+		entityID := args[3]
+		accessible, err := s.isFunctionAccessible(ctx, function, userID, entityID)
 		if err != nil {
 			return err
 		}
-		if correctArgs {
+		if accessible {
+			allArgs := args[4:]
 			if function == "RegisterMedicament" {
-				return s.RegisterMedicament(ctx, allArgs)
+				return s.RegisterMedicament(ctx, entityID, allArgs)
 			} else if function == "DispatchMedicament" {
-				return s.RegisterMedicament(ctx, allArgs)
+				return s.DispatchMedicament(ctx, entityID, allArgs)
 			} else if function == "ReceiveMedicament" {
-				return s.RegisterMedicament(ctx, allArgs)
+				return s.ReceiveMedicament(ctx, entityID, allArgs)
 			} else if function == "DispenseMedicament" {
-				return s.RegisterMedicament(ctx, allArgs)
+				return s.DispenseMedicament(ctx, entityID, allArgs)
 			}
 			return fmt.Errorf("Invalid function")
 		}
-		return fmt.Errorf("Incorrect Args")
+
 	}
+	return fmt.Errorf("Incorrect Args")
 	return fmt.Errorf("Function inaccessible")
 }
 
 // InitLedger adds a base set of medicaments, entities and entity users to the ledger
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 
-	lab_User := Entity_User{
-		User_Name: "lab", User_ID: "lab_ID", Email: "lab@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw",
+	lab_Users := []Entity_User{
+		{User_Name: "lab", User_ID: "userLab_ID", Email: "lab@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw"},
+		{User_Name: "labAdmin", User_ID: "adminLab_ID", Email: "lab@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw"},
 	}
 
-	lab_UserJSON, err := json.Marshal(lab_User)
-	if err != nil {
-		return err
+	lab_UsersID := []string{}
+	for _, lab_User := range lab_Users {
+
+		lab_UsersID = append(lab_UsersID, lab_User.User_ID)
+		lab_UserJSON, err := json.Marshal(lab_User)
+		if err != nil {
+			return err
+		}
+
+		err = ctx.GetStub().PutState(lab_User.User_ID, lab_UserJSON)
+		if err != nil {
+			return fmt.Errorf("failed to put to world state. %v", err)
+		}
 	}
 
-	err = ctx.GetStub().PutState(lab_User.User_ID, lab_UserJSON)
-	if err != nil {
-		return fmt.Errorf("failed to put to world state. %v", err)
+	pharmacy_Users := []Entity_User{
+		{User_Name: "pharmacy", User_ID: "userPharmacy_ID", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw"},
+		{User_Name: "pharmacyAdmin", User_ID: "adminPharmacy_ID", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw"},
 	}
 
-	pharmacy_User := Entity_User{
-		User_Name: "pharmacy", User_ID: "pharmacy_ID", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw",
-	}
+	pharmacy_UsersID := []string{}
+	for _, pharmacy_User := range pharmacy_Users {
+		pharmacy_UsersID = append(pharmacy_UsersID, pharmacy_User.User_ID)
+		pharmacy_UserJSON, err := json.Marshal(pharmacy_User)
+		if err != nil {
+			return err
+		}
 
-	pharmacy_UserJSON, err := json.Marshal(pharmacy_User)
-	if err != nil {
-		return err
-	}
-
-	err = ctx.GetStub().PutState(pharmacy_User.User_ID, pharmacy_UserJSON)
-	if err != nil {
-		return fmt.Errorf("failed to put to world state. %v", err)
+		err = ctx.GetStub().PutState(pharmacy_User.User_ID, pharmacy_UserJSON)
+		if err != nil {
+			return fmt.Errorf("failed to put to world state. %v", err)
+		}
 	}
 
 	entities := []Entity{
-		{Entity_Name: "lab1", Entity_ID: "lab1", Type: "lab", Entity_Users: []string{"lab_ID"}},
-		{Entity_Name: "pharmacy2", Entity_ID: "pharmacy2", Type: "pharmacy", Entity_Users: []string{"pharmacy_ID"}},
+		{Entity_Name: "lab1", Entity_ID: "lab1", Type: "lab", Entity_Users: lab_UsersID},
+		{Entity_Name: "pharmacy2", Entity_ID: "pharmacy2", Type: "pharmacy", Entity_Users: pharmacy_UsersID},
 	}
 
 	for _, entity := range entities {
@@ -126,12 +143,22 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 			return fmt.Errorf("failed to put to world state. %v", err)
 		}
 	}
+	_RegisterDate, err := s.GetTxTimestamp(ctx)
+	if err != nil {
+		return err
+	}
+	MedDates := MedicamentDates{
+		DispatchDate:     "",
+		DispenseDate:     "",
+		ReceiveDate:      "",
+		RegistrationDate: _RegisterDate,
+	}
 
 	medicaments := []Medicament{
-		{Medicament_Name: "Ibuprofeno", Product_Code: 8470008722513, Serial_Number: "6874352687", Lot_Number: "L201JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1"},
-		{Medicament_Name: "Ibuprofeno", Product_Code: 8470008722513, Serial_Number: "6874352688", Lot_Number: "L201JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1"},
-		{Medicament_Name: "Paracetamol", Product_Code: 8470006723459, Serial_Number: "7874352687", Lot_Number: "L101JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1"},
-		{Medicament_Name: "Paracetamol", Product_Code: 8470006723459, Serial_Number: "7874352688", Lot_Number: "L101JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1"},
+		{Medicament_Name: "Ibuprofeno", Product_Code: 8470008722513, Serial_Number: "6874352687", Lot_Number: "L201JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1", Dates: MedDates},
+		{Medicament_Name: "Ibuprofeno", Product_Code: 8470008722513, Serial_Number: "6874352688", Lot_Number: "L201JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1", Dates: MedDates},
+		{Medicament_Name: "Paracetamol", Product_Code: 8470006723459, Serial_Number: "7874352687", Lot_Number: "L101JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1", Dates: MedDates},
+		{Medicament_Name: "Paracetamol", Product_Code: 8470006723459, Serial_Number: "7874352688", Lot_Number: "L101JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1", Dates: MedDates},
 	}
 
 	for _, medicament := range medicaments {
@@ -150,10 +177,10 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 }
 
 // function to register a medicament
-func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInterface, args []string) error {
-
+func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInterface, _entityID string, args []string) error {
+	_Serial_Number := args[2]
 	//REVISAR QUE NO ESTÉ CREADO
-	exists, err := s.AssetExists(ctx, args[2])
+	exists, err := s.AssetExists(ctx, _Serial_Number)
 	if err != nil {
 		return err
 	}
@@ -180,25 +207,36 @@ func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInt
 	if expired {
 		return fmt.Errorf("This medicament is expired, it can not be processed")
 	}
-	fmt.Printf("creating medicament with name: " + args[0] + "Serial_Number: " + args[2])
+
+	emptyDates := MedicamentDates{
+		DispatchDate:     "",
+		DispenseDate:     "",
+		ReceiveDate:      "",
+		RegistrationDate: "",
+	}
+	MedDates, err := s.UpdateDates(ctx, "RegisterMedicament", emptyDates)
+	if err != nil {
+		return err
+	}
 	//SI TODO VA BIEN, MEDICAMENTO ES REGISTRADO
 	medicament := Medicament{
 		Medicament_Name:  args[0],
 		Product_Code:     _Product_Code,
-		Serial_Number:    args[2],
+		Serial_Number:    _Serial_Number,
 		Lot_Number:       args[3],
 		Expiration_Year:  _Expiration_Year,
 		Expiration_Month: _Expiration_Month,
 		Status:           1,
-		Producer_Lab:     "",
+		Producer_Lab:     _entityID,
 		Seller_Pharmacy:  "",
-		Current_Owner:    "",
+		Current_Owner:    _entityID,
+		Dates:            MedDates,
 	}
 	medJSON, err := json.Marshal(medicament)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("creating medicament with Serial_Number: " + medicament.Serial_Number)
+
 	err = ctx.GetStub().PutState(medicament.Serial_Number, medJSON)
 	if err != nil {
 		return err
@@ -208,128 +246,170 @@ func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInt
 }
 
 // function to register the dispatch of a medicament
-func (s *SmartContract) DispatchMedicament(ctx contractapi.TransactionContextInterface, _Serial_Number string) (bool, error) {
-
+func (s *SmartContract) DispatchMedicament(ctx contractapi.TransactionContextInterface, _entityID string, args []string) error {
+	_Serial_Number := args[1]
 	//OBTENGO EL ASSET Y COMPRUEBO QUE EXISTE
 	medicament, err := s.ReadMedicament(ctx, _Serial_Number)
 	if err != nil {
-		return false, err
+		return err
+	}
+
+	//Revisar current owner
+	if medicament.Current_Owner != _entityID {
+		return fmt.Errorf("This medicament does not belong to this lab")
+	}
+
+	//Revisar el future owner
+	receiverEntity, err := s.ReadEntity(ctx, args[0])
+	if err != nil {
+		return err
+	}
+	if receiverEntity.Type != "pharmacy" {
+		return fmt.Errorf("The recipient of the medicament must be a pharmacy")
 	}
 
 	//REVISAR QUE NO ESTÉ CADUCADO
 	expired, err := s.isExpired(ctx, medicament.Expiration_Year, medicament.Expiration_Month)
 	if err != nil {
-		return false, err
+		return err
 	}
 	if expired {
-		return false, fmt.Errorf("This medicament is expired, it can not be processed")
+		return fmt.Errorf("This medicament is expired, it can not be processed")
 	}
 
-	//SI TODO VA BIEN:
-
 	//SE SETEA EL FUTURE OWNER
+	medicament.Seller_Pharmacy = receiverEntity.Entity_ID
 
 	//EL STATUS CAMBIA
 	status, err := s.getNewStatus(ctx, medicament.Status, "DispatchMedicament")
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	medicament.Status = status
 
+	MedDates, err := s.UpdateDates(ctx, "DispatchMedicament", medicament.Dates)
+	if err != nil {
+		return err
+	}
+	medicament.Dates = MedDates
 	//ASSET ACTUALIZADO
 	assetJSON, err := json.Marshal(medicament)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	err = ctx.GetStub().PutState(_Serial_Number, assetJSON)
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // function to register the receive of a medicament in a pharmacy
-func (s *SmartContract) ReceiveMedicament(ctx contractapi.TransactionContextInterface, _Serial_Number string) (bool, error) {
-
+func (s *SmartContract) ReceiveMedicament(ctx contractapi.TransactionContextInterface, _entityID string, args []string) error {
+	Serial_Number := args[0]
 	//OBTENGO EL ASSET Y COMPRUEBO QUE EXISTE
-	medicament, err := s.ReadMedicament(ctx, _Serial_Number)
+	medicament, err := s.ReadMedicament(ctx, Serial_Number)
 	if err != nil {
-		return false, err
+		return err
+	}
+
+	//REVISAR QUE EL FUTURE OWNER DEL FARMACO CORRESPONDE A LA FARMACIA QUE EJECUTA ESTA FUNCION
+	if medicament.Seller_Pharmacy != _entityID {
+		return fmt.Errorf("This medicament is not addressed to this pharmacy")
 	}
 
 	//REVISAR QUE NO ESTÉ CADUCADO
 	expired, err := s.isExpired(ctx, medicament.Expiration_Year, medicament.Expiration_Month)
 	if err != nil {
-		return false, err
+		return err
 	}
 	if expired {
-		return false, fmt.Errorf("This medicament is expired, it can not be processed")
+		return fmt.Errorf("This medicament is expired, it can not be processed")
 	}
 
-	//REVISAR QUE EL FUTURE OWNER DEL FARMACO CORRESPONDE A LA FARMACIA QUE EJECUTA ESTA FUNCION
+	medicament.Current_Owner = _entityID
 
 	//EL STATUS CAMBIA
 	status, err := s.getNewStatus(ctx, medicament.Status, "ReceiveMedicament")
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	medicament.Status = status
 
+	MedDates, err := s.UpdateDates(ctx, "ReceiveMedicament", medicament.Dates)
+	if err != nil {
+		return err
+	}
+	medicament.Dates = MedDates
 	//ASSET ACTUALIZADO
 	assetJSON, err := json.Marshal(medicament)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	err = ctx.GetStub().PutState(_Serial_Number, assetJSON)
+	err = ctx.GetStub().PutState(Serial_Number, assetJSON)
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // function to register the dispense of a medicament in a pharmacy
-func (s *SmartContract) DispenseMedicament(ctx contractapi.TransactionContextInterface, _Serial_Number string) (bool, error) {
-
+func (s *SmartContract) DispenseMedicament(ctx contractapi.TransactionContextInterface, _entityID string, args []string) error {
+	_Serial_Number := args[0]
 	//OBTENGO EL ASSET Y COMPRUEBO QUE EXISTE
 	medicament, err := s.ReadMedicament(ctx, _Serial_Number)
 	if err != nil {
-		return false, err
+		return err
+	}
+
+	//Revisar current owner
+	if medicament.Current_Owner != _entityID {
+		return fmt.Errorf("This medicament does not belong to this pharmacy")
 	}
 
 	//REVISAR QUE NO ESTÉ CADUCADO
 	expired, err := s.isExpired(ctx, medicament.Expiration_Year, medicament.Expiration_Month)
 	if err != nil {
-		return false, err
+		return err
 	}
 	if expired {
-		return false, fmt.Errorf("This medicament is expired, it can not be processed")
+		return fmt.Errorf("This medicament is expired, it can not be processed")
 	}
 
 	//REVISAR QUE EL CURRENT OWNER DEL FARMACO CORRESPONDE A LA FARMACIA QUE EJECUTA ESTA FUNCION
+	if medicament.Seller_Pharmacy != _entityID {
+		return fmt.Errorf("This medicament is not addressed to this pharmacy")
+	}
 
 	//EL STATUS CAMBIA
 	status, err := s.getNewStatus(ctx, medicament.Status, "DispenseMedicament")
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	medicament.Status = status
 
+	MedDates, err := s.UpdateDates(ctx, "ReceiveMedicament", medicament.Dates)
+	if err != nil {
+		return err
+	}
+	medicament.Dates = MedDates
+
 	//ASSET ACTUALIZADO
 	assetJSON, err := json.Marshal(medicament)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	err = ctx.GetStub().PutState(_Serial_Number, assetJSON)
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // function that returs the new medicament status after going through a tracking point
@@ -346,8 +426,18 @@ func (s *SmartContract) getNewStatus(ctx contractapi.TransactionContextInterface
 }
 
 // function that checks if the arguments passed to a function are correct
-func (s *SmartContract) areArgumentsCorrect(ctx contractapi.TransactionContextInterface, function string, _allArgs []string) (bool, error) {
-
+func (s *SmartContract) areArgumentsCorrect(ctx contractapi.TransactionContextInterface, _Args []string) (bool, error) {
+	if len(_Args) <= 3 {
+		return false, fmt.Errorf("Incorrect number of arguments")
+	}
+	function := _Args[0]
+	if len(_Args[1]) == 0 {
+		return false, fmt.Errorf("User ID must be provided")
+	}
+	if len(_Args[2]) == 0 {
+		return false, fmt.Errorf("Entity ID must be provided")
+	}
+	_allArgs := _Args[3:]
 	if function == "RegisterMedicament" {
 		if len(_allArgs) != 6 {
 			return false, fmt.Errorf("Incorrect number of arguments")
@@ -372,10 +462,13 @@ func (s *SmartContract) areArgumentsCorrect(ctx contractapi.TransactionContextIn
 		}
 		return true, nil
 	} else if function == "DispatchMedicament" {
-		if len(_allArgs) != 1 {
+		if len(_allArgs) != 2 {
 			return false, fmt.Errorf("Incorrect number of arguments")
 		}
 		if len(_allArgs[0]) == 0 {
+			return false, fmt.Errorf("Recipient entity ID must be provided")
+		}
+		if len(_allArgs[0]) == 1 {
 			return false, fmt.Errorf("Serial Number must be provided")
 		}
 		return true, nil
@@ -459,6 +552,39 @@ func (s *SmartContract) isExpired(ctx contractapi.TransactionContextInterface, _
 	return false, nil
 }
 
+// function that gets a registered medicament given a serial number and returns it after checking the current owner of the medicament
+func (s *SmartContract) GetMedicament(ctx contractapi.TransactionContextInterface, _userID string, _entityID string, _Serial_Number string) (*Medicament, error) {
+	entity, err := s.ReadEntity(ctx, _entityID)
+	if err != nil {
+		return nil, err
+	}
+
+	users := entity.Entity_Users
+	isValidUser, err := s.isUserInEntity(ctx, _userID, users)
+	if err != nil {
+		return nil, err
+	}
+
+	if isValidUser {
+		user, err := s.ReadUser(ctx, _userID)
+		if err != nil {
+			return nil, err
+		}
+		if user.Rol == "admin" {
+			medicament, err := s.ReadMedicament(ctx, _Serial_Number)
+			if err != nil {
+				return nil, err
+			}
+			if medicament.Current_Owner != _entityID {
+				return nil, fmt.Errorf("Can not access to medicament without being the owner")
+			}
+			return medicament, nil
+		}
+		return nil, fmt.Errorf("Can not access to a medicament without being the admin")
+	}
+	return nil, fmt.Errorf("User does not belong to entity")
+}
+
 // function that returns a registered medicament given a serial number
 func (s *SmartContract) ReadMedicament(ctx contractapi.TransactionContextInterface, _Serial_Number string) (*Medicament, error) {
 	assetJSON, err := ctx.GetStub().GetState(_Serial_Number)
@@ -466,7 +592,7 @@ func (s *SmartContract) ReadMedicament(ctx contractapi.TransactionContextInterfa
 		return nil, fmt.Errorf("failed to read from world state: %v", err)
 	}
 	if assetJSON == nil {
-		return nil, fmt.Errorf("the asset %s does not exist", _Serial_Number)
+		return nil, fmt.Errorf("the medicament %s does not exist", _Serial_Number)
 	}
 
 	var medicament Medicament
@@ -504,7 +630,7 @@ func (s *SmartContract) ReadEntity(ctx contractapi.TransactionContextInterface, 
 		return nil, fmt.Errorf("failed to read from world state: %v", err)
 	}
 	if entityJSON == nil {
-		return nil, fmt.Errorf("the asset %s does not exist", _Entity_ID)
+		return nil, fmt.Errorf("the entity %s does not exist", _Entity_ID)
 	}
 
 	var entity Entity
@@ -526,56 +652,116 @@ func (s *SmartContract) AssetExists(ctx contractapi.TransactionContextInterface,
 	return assetJSON != nil, nil
 }
 
-// function that returns all registered medicaments in the system
-func (t *SmartContract) GetAllMedicaments(ctx contractapi.TransactionContextInterface) ([]*Medicament, error) { //
-
-	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+func (s *SmartContract) GetTxTimestamp(ctx contractapi.TransactionContextInterface) (string, error) {
+	txTimeAsPtr, err := ctx.GetStub().GetTxTimestamp()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	defer resultsIterator.Close()
+	timeStr := time.Unix(txTimeAsPtr.Seconds, int64(txTimeAsPtr.Nanos)).String()
 
-	var medicaments []*Medicament
-	for resultsIterator.HasNext() {
-		queryResponse, err := resultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-
-		var medicament Medicament
-		err = json.Unmarshal(queryResponse.Value, &medicament)
-		if err != nil {
-			return nil, err
-		}
-		medicaments = append(medicaments, &medicament)
-	}
-
-	return medicaments, nil
+	return timeStr, nil
 }
 
-// function that returns all registered users in the system
-func (t *SmartContract) GetAllUsers(ctx contractapi.TransactionContextInterface) ([]*Entity_User, error) {
+func (s *SmartContract) UpdateDates(ctx contractapi.TransactionContextInterface, function string, _currentDates MedicamentDates) (MedicamentDates, error) {
+	TxDate, err := s.GetTxTimestamp(ctx)
+	if err != nil {
+		return _currentDates, err
+	}
+	if function == "RegisterMedicament" {
+		_currentDates.RegistrationDate = TxDate
+	} else if function == "DispatchMedicament" {
+		_currentDates.DispatchDate = TxDate
+	} else if function == "ReceiveMedicament" {
+		_currentDates.ReceiveDate = TxDate
+	} else if function == "DispenseMedicament" {
+		_currentDates.DispenseDate = TxDate
+	} else {
+		return _currentDates, fmt.Errorf("Undefined function, medicament dates have not been updated")
+	}
+	return _currentDates, nil
+}
 
-	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+// function that returns all registered medicaments owner by an entity in the system
+func (s *SmartContract) GetAllMedicaments(ctx contractapi.TransactionContextInterface, _userID string, _entityID string) ([]*Medicament, error) { //
+	entity, err := s.ReadEntity(ctx, _entityID)
 	if err != nil {
 		return nil, err
 	}
-	defer resultsIterator.Close()
 
-	var entity_Users []*Entity_User
-	for resultsIterator.HasNext() {
-		queryResponse, err := resultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-
-		var entity_User Entity_User
-		err = json.Unmarshal(queryResponse.Value, &entity_User)
-		if err != nil {
-			return nil, err
-		}
-		entity_Users = append(entity_Users, &entity_User)
+	users := entity.Entity_Users
+	isValidUser, err := s.isUserInEntity(ctx, _userID, users)
+	if err != nil {
+		return nil, err
 	}
 
-	return entity_Users, nil
+	if isValidUser {
+		user, err := s.ReadUser(ctx, _userID)
+		if err != nil {
+			return nil, err
+		}
+		if user.Rol == "admin" {
+
+			resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+			if err != nil {
+				return nil, err
+			}
+			defer resultsIterator.Close()
+
+			var medicaments []*Medicament
+			for resultsIterator.HasNext() {
+				queryResponse, err := resultsIterator.Next()
+				if err != nil {
+					return nil, err
+				}
+
+				var medicament Medicament
+				err = json.Unmarshal(queryResponse.Value, &medicament)
+				if err != nil {
+					return nil, err
+				}
+				if medicament.Current_Owner == _entityID {
+					medicaments = append(medicaments, &medicament)
+				}
+			}
+
+			return medicaments, nil
+		}
+		return nil, fmt.Errorf("Can not access to medicaments without being the admin")
+	}
+	return nil, fmt.Errorf("User does not belong to entity")
+}
+
+// function that returns all registered users of an entity in the system
+func (s *SmartContract) GetAllUsers(ctx contractapi.TransactionContextInterface, _userID string, _entityID string) ([]*Entity_User, error) {
+	entity, err := s.ReadEntity(ctx, _entityID)
+	if err != nil {
+		return nil, err
+	}
+
+	users := entity.Entity_Users
+	isValidUser, err := s.isUserInEntity(ctx, _userID, users)
+	if err != nil {
+		return nil, err
+	}
+
+	if isValidUser {
+		currentUser, err := s.ReadUser(ctx, _userID)
+		if err != nil {
+			return nil, err
+		}
+		if currentUser.Rol == "admin" {
+			var usersEntity []*Entity_User
+			for _, userEntityID := range users {
+				user, err := s.ReadUser(ctx, userEntityID)
+				if err != nil {
+					return nil, err
+				}
+				usersEntity = append(usersEntity, user)
+			}
+			return usersEntity, nil
+		}
+
+		return nil, fmt.Errorf("Can not access to users without being the admin")
+	}
+	return nil, fmt.Errorf("User does not belong to entity")
 }
