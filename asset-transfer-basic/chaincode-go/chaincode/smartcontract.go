@@ -79,9 +79,8 @@ func (s *SmartContract) InvokeTrackingPoint(ctx contractapi.TransactionContextIn
 			}
 			return fmt.Errorf("Invalid function")
 		}
-
-	}
-	return fmt.Errorf("Incorrect Args")
+		return fmt.Errorf("Incorrect Args")
+	}	
 	return fmt.Errorf("Function inaccessible")
 }
 
