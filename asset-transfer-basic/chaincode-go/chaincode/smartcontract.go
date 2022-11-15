@@ -229,8 +229,11 @@ func (s *SmartContract) LogIn(ctx contractapi.TransactionContextInterface, _enti
 					}
 				}
 			}
+			fmt.Println("Log In Success")
 			return nil
 		} else {
+			fmt.Println("Log In Failed")
+
 			return fmt.Errorf("Wrong credentials, user: " + user.User_ID)
 		}
 
