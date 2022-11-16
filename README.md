@@ -1,7 +1,11 @@
-# TFM-UPC
+# TFM-UPC Pharma
 
-Ir a https://docs.google.com/document/d/1IqxuJZB9tu3SW2mNbCnvzRvZtdrEL1mrabgJ37NnwQw/edit?usp=sharing, al final del documento teneis como inicializar la red.
+This is a project simulating a pharma industry use case where blockchain can be applied to fasten the medical supply process and prevent medicament falsification.
 
-Hay que tener los prerequisitos instalados, es decir, docker, las imagenes bajadas, etc.
+## Set the network
 
-Si subimos algo, crear una rama/branch nueva y se sube en la rama y se solicita mergear a la main.
+In order to set up the network, run the following commands in order to set and run the network.
+
+```
+cd TFM-UPC/pharma
+```
