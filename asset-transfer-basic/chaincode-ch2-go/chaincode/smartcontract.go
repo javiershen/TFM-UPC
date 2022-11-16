@@ -322,6 +322,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 	medicaments := []Medicament{
 		{Medicament_Name: "Ibuprofeno", Product_Code: 8470008722513},
 		{Medicament_Name: "Paracetamol", Product_Code: 8470006723459},
+		{Medicament_Name: "Diacepan", Product_Code: 898988888888},
 	}
 
 	for _, medicament := range medicaments {
