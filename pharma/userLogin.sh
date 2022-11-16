@@ -2,7 +2,7 @@
 #
 #
 # Exit on first error
-set -e
+
 
 echo USERNAME_ID:
 read username
