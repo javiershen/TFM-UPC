@@ -22,12 +22,17 @@ type Entity struct {
 }
 
 type Entity_User struct {
-	User_Name string `json:"User_Name"`
-	User_ID   string `json:"User_ID"`
-	Email     string `json:"Email"`
-	Rol       string `json:"Rol"`
-	Address   string `json:"Address"`
-	Password  string `json:"Password"`
+	User_Name    string   `json:"User_Name"`
+	User_ID      string   `json:"User_ID"`
+	Email        string   `json:"Email"`
+	Rol          string   `json:"Rol"`
+	Address      string   `json:"Address"`
+	Password     string   `json:"Password"`
+	Sessions_Log []string `json:"Sessions_Log"`
+}
+
+type Counter struct {
+	Count int `json:"Count"`
 }
 
 type MedicamentDates struct {
@@ -53,7 +58,6 @@ type Medicament struct {
 
 type Session struct {
 	EntityID       string `json:"EntityID"`
-	UserID         string `json:"UserID"`
 	GenerationDate string `json:"GenerationDate"`
 	SessionID      string `json:"SessionID"`
 	Status         int    `json:"Status"` // 1: activa | 0: inactiva
@@ -70,41 +74,47 @@ func (s *SmartContract) Invoke(ctx contractapi.TransactionContextInterface) erro
 		function := args[1]
 		userID := args[2]
 		entityID := args[3]
-		sessionID := s.GenerateSessionID(ctx, entityID, userID)
-		session, err := s.ReadSession(ctx, sessionID)
-		if err != nil {
-			return err
-		}
-		if session == nil {
-			return fmt.Errorf("No active session for that user. Please, log in")
-		}
-		isexpired, err := s.IsSessionExpired(ctx, session)
-		if err != nil {
-			return err
-		}
-		if !isexpired {
 
-			accessible, err := s.isFunctionAccessible(ctx, function, userID, entityID)
+		activeSessions, err := s.GetActiveSessions(ctx, entityID, userID)
+		if err != nil {
+			return err
+		}
+		if len(activeSessions) == 1 {
+			session := activeSessions[0]
+			isexpired, err := s.IsSessionExpired(ctx, session)
 			if err != nil {
 				return err
 			}
-			if accessible {
-				allArgs := args[4:]
-				if function == "RegisterMedicament" {
-					return s.RegisterMedicament(ctx, entityID, allArgs)
-				} else if function == "DispatchMedicament" {
-					return s.DispatchMedicament(ctx, entityID, allArgs)
-				} else if function == "ReceiveMedicament" {
-					return s.ReceiveMedicament(ctx, entityID, allArgs)
-				} else if function == "DispenseMedicament" {
-					return s.DispenseMedicament(ctx, entityID, allArgs)
-				}
-				return fmt.Errorf("Invalid function")
-			}
+			if !isexpired {
 
-			return fmt.Errorf("Incorrect Args")
+				accessible, err := s.isFunctionAccessible(ctx, function, userID, entityID)
+				if err != nil {
+					return err
+				}
+				if accessible {
+					allArgs := args[4:]
+					if function == "RegisterMedicament" {
+						return s.RegisterMedicament(ctx, entityID, allArgs)
+					} else if function == "DispatchMedicament" {
+						return s.DispatchMedicament(ctx, entityID, allArgs)
+					} else if function == "ReceiveMedicament" {
+						return s.ReceiveMedicament(ctx, entityID, allArgs)
+					} else if function == "DispenseMedicament" {
+						return s.DispenseMedicament(ctx, entityID, allArgs)
+					}
+					return fmt.Errorf("Invalid function")
+				}
+
+				return fmt.Errorf("Incorrect Args")
+			} else {
+				return fmt.Errorf("Session expired. Log in again, please")
+			}
+		} else if len(activeSessions) == 0 {
+			return fmt.Errorf("No active session for that user. Please, log in")
+
 		} else {
-			return fmt.Errorf("Session expired. Log in again, please")
+			s.LogOut(ctx, entityID, userID)
+			return fmt.Errorf("No active session for that user. Please, log in")
 		}
 	}
 	return fmt.Errorf("Function inaccessible")
@@ -128,7 +138,6 @@ func (s *SmartContract) CreateSession(ctx contractapi.TransactionContextInterfac
 	}
 	session := Session{
 		EntityID:       _entityID,
-		UserID:         _userID,
 		GenerationDate: actualDateStr,
 		SessionID:      _sessionID,
 		Status:         1,
@@ -139,6 +148,24 @@ func (s *SmartContract) CreateSession(ctx contractapi.TransactionContextInterfac
 	}
 
 	err = ctx.GetStub().PutState(session.SessionID, sessionJSON)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SmartContract) StoreSession(ctx contractapi.TransactionContextInterface, _sessionID string, _userID string) error {
+	user, err := s.ReadUser(ctx, _userID)
+	if err != nil {
+		return err
+	}
+	user.Sessions_Log = append(user.Sessions_Log, _sessionID)
+	userJSON, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	err = ctx.GetStub().PutState(_userID, userJSON)
 	if err != nil {
 		return err
 	}
@@ -196,17 +223,22 @@ func (s *SmartContract) LogIn(ctx contractapi.TransactionContextInterface, _enti
 			return err
 		}
 		if isPswCorrect {
-			sessionID := s.GenerateSessionID(ctx, _entityID, user.User_ID)
-			session, err := s.ReadSession(ctx, sessionID)
+			sessions, err := s.GetActiveSessions(ctx, _entityID, user.User_ID)
 			if err != nil {
 				return err
 			}
-			if session == nil {
-				err := s.CreateSession(ctx, sessionID, _entityID, user.User_ID)
-				if err != nil {
-					return err
-				}
-			} else {
+			if len(sessions) > 0 {
+				s.LogOut(ctx, _entityID, user.User_ID)
+			}
+			sessionID := s.GenerateSessionID(ctx)
+			//session, err := s.ReadSessions(ctx, sessionID)
+			/* if err != nil {
+				return err
+			} */
+			//if session == nil {
+			s.CreateSession(ctx, sessionID, _entityID, user.User_ID)
+			s.StoreSession(ctx, sessionID, user.User_ID)
+			/* } else {
 				isExpired, err := s.IsSessionExpired(ctx, session)
 				if err != nil {
 					return err
@@ -228,7 +260,7 @@ func (s *SmartContract) LogIn(ctx contractapi.TransactionContextInterface, _enti
 						return err
 					}
 				}
-			}
+			} */
 			return nil
 		} else {
 			return fmt.Errorf("Wrong credentials")
@@ -238,16 +270,37 @@ func (s *SmartContract) LogIn(ctx contractapi.TransactionContextInterface, _enti
 	return fmt.Errorf("Invalid user")
 }
 
-func (s *SmartContract) GenerateSessionID(ctx contractapi.TransactionContextInterface, _entityID string, _userID string) string {
-	return _entityID + "-" + _userID
+func (s *SmartContract) GetCounter(ctx contractapi.TransactionContextInterface) int {
+	counterJSON, _ := ctx.GetStub().GetState("SessionCounter")
+
+	var counter Counter
+	json.Unmarshal(counterJSON, &counter)
+
+	return counter.Count
+}
+
+func (s *SmartContract) IncrementCounter(ctx contractapi.TransactionContextInterface, _counter int) {
+	_count := _counter + 1
+	counter := Counter{Count: _count}
+	counterJSON, _ := json.Marshal(counter)
+
+	_ = ctx.GetStub().PutState("SessionCounter", counterJSON)
+}
+
+func (s *SmartContract) GenerateSessionID(ctx contractapi.TransactionContextInterface) string {
+
+	counter := s.GetCounter(ctx)
+	s.IncrementCounter(ctx, counter)
+
+	return strconv.Itoa(counter)
 }
 
 // InitLedger adds a base set of medicaments, entities and entity users to the ledger
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 
 	lab_Users := []Entity_User{
-		{User_Name: "userLab", User_ID: "userLab", Email: "lab@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw"},
-		{User_Name: "adminLab", User_ID: "adminLab", Email: "lab@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw"},
+		{User_Name: "userLab", User_ID: "userLab", Email: "lab@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
+		{User_Name: "adminLab", User_ID: "adminLab", Email: "lab@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
 	}
 
 	lab_UsersID := []string{}
@@ -266,8 +319,8 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 	}
 
 	pharmacy_Users := []Entity_User{
-		{User_Name: "userPharmacy", User_ID: "userPharmacy", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw"},
-		{User_Name: "adminPharmacy", User_ID: "adminPharmacy", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw"},
+		{User_Name: "userPharmacy", User_ID: "userPharmacy", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
+		{User_Name: "adminPharmacy", User_ID: "adminPharmacy", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
 	}
 
 	pharmacy_UsersID := []string{}
@@ -328,6 +381,16 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		if err != nil {
 			return fmt.Errorf("failed to put to world state. %v", err)
 		}
+	}
+
+	counter := Counter{Count: 1}
+	counterJSON, err := json.Marshal(counter)
+	if err != nil {
+		return err
+	}
+	err = ctx.GetStub().PutState("SessionCounter", counterJSON)
+	if err != nil {
+		return fmt.Errorf("failed to put to world state. %v", err)
 	}
 
 	return nil
@@ -771,6 +834,88 @@ func (s *SmartContract) ReadEntity(ctx contractapi.TransactionContextInterface, 
 	return &entity, nil
 }
 
+func (s *SmartContract) GetActiveSessions(ctx contractapi.TransactionContextInterface, _Entity_ID string, _User_ID string) ([]*Session, error) {
+	user, err := s.ReadUser(ctx, _User_ID)
+	if err != nil {
+		return nil, err
+	}
+	if user != nil {
+		userLog := user.Sessions_Log
+		var userSessions []*Session
+		for _, userSessionID := range userLog {
+			session, err := s.ReadSession(ctx, userSessionID)
+			if err != nil {
+				return nil, err
+			}
+			if session.EntityID == _Entity_ID && session.Status == 1 {
+				userSessions = append(userSessions, session)
+			}
+		}
+		return userSessions, nil
+	} else {
+		return nil, fmt.Errorf("Invalid User")
+	}
+
+}
+
+func (s *SmartContract) LogOut(ctx contractapi.TransactionContextInterface, _Entity_ID string, _User_ID string) error {
+	user, err := s.ReadUser(ctx, _User_ID)
+	if err != nil {
+		return err
+	}
+	if user != nil {
+		userLog := user.Sessions_Log
+
+		for _, userSessionID := range userLog {
+			session, err := s.ReadSession(ctx, userSessionID)
+			if err != nil {
+				return err
+			}
+			if session.EntityID == _Entity_ID && session.Status == 1 {
+				session.Status = 0
+
+				assetJSON, err := json.Marshal(session)
+				if err != nil {
+					return err
+				}
+
+				err = ctx.GetStub().PutState(userSessionID, assetJSON)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	} else {
+		return fmt.Errorf("Invalid User")
+	}
+
+}
+
+func (s *SmartContract) GetSessions(ctx contractapi.TransactionContextInterface, _Entity_ID string, _User_ID string) ([]*Session, error) {
+	user, err := s.ReadUser(ctx, _User_ID)
+	if err != nil {
+		return nil, err
+	}
+	if user != nil {
+		userLog := user.Sessions_Log
+		var userSessions []*Session
+		for _, userSessionID := range userLog {
+			session, err := s.ReadSession(ctx, userSessionID)
+			if err != nil {
+				return nil, err
+			}
+			if session.EntityID == _Entity_ID {
+				userSessions = append(userSessions, session)
+			}
+		}
+		return userSessions, nil
+	} else {
+		return nil, fmt.Errorf("Invalid User")
+	}
+
+}
+
 // function that returns a registered session given an session id
 func (s *SmartContract) ReadSession(ctx contractapi.TransactionContextInterface, _SessionID string) (*Session, error) {
 	sessionJSON, err := ctx.GetStub().GetState(_SessionID)
@@ -831,135 +976,150 @@ func (s *SmartContract) UpdateDates(ctx contractapi.TransactionContextInterface,
 
 // function that gets a registered medicament given a serial number and returns it after checking the current owner of the medicament
 func (s *SmartContract) GetMedicament(ctx contractapi.TransactionContextInterface, _userID string, _entityID string, _Serial_Number string) (*Medicament, error) {
-	sessionID := s.GenerateSessionID(ctx, _entityID, _userID)
-	session, err := s.ReadSession(ctx, sessionID)
+	activeSessions, err := s.GetActiveSessions(ctx, _entityID, _userID)
 	if err != nil {
 		return nil, err
 	}
-	if session == nil {
-		return nil, fmt.Errorf("No active session for that user. Please, log in")
-	}
-	isexpired, err := s.IsSessionExpired(ctx, session)
-	if err != nil {
-		return nil, err
-	}
-	if !isexpired {
-		user, err := s.ReadUser(ctx, _userID)
+	if len(activeSessions) == 1 {
+		session := activeSessions[0]
+		isexpired, err := s.IsSessionExpired(ctx, session)
 		if err != nil {
 			return nil, err
 		}
-		if user.Rol == "admin" {
-			medicament, err := s.ReadMedicament(ctx, _Serial_Number)
+		if !isexpired {
+			user, err := s.ReadUser(ctx, _userID)
 			if err != nil {
 				return nil, err
 			}
-			if medicament.Current_Owner != _entityID {
-				return nil, fmt.Errorf("Can not access to medicament without being the owner")
+			if user.Rol == "admin" {
+				medicament, err := s.ReadMedicament(ctx, _Serial_Number)
+				if err != nil {
+					return nil, err
+				}
+				if medicament.Current_Owner != _entityID {
+					return nil, fmt.Errorf("Can not access to medicament without being the owner")
+				}
+				return medicament, nil
+			} else {
+				return nil, fmt.Errorf("Can not access to a medicament without being the admin")
 			}
-			return medicament, nil
 		} else {
-			return nil, fmt.Errorf("Can not access to a medicament without being the admin")
+			return nil, fmt.Errorf("Session expired. Log in again, please")
 		}
+	} else if len(activeSessions) == 0 {
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
+
 	} else {
-		return nil, fmt.Errorf("Session expired. Log in again, please")
+		s.LogOut(ctx, _entityID, _userID)
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
 	}
 }
 
 // function that returns all registered medicaments owner by an entity in the system
 func (s *SmartContract) GetAllMedicaments(ctx contractapi.TransactionContextInterface, _userID string, _entityID string) ([]*Medicament, error) { //
-	sessionID := s.GenerateSessionID(ctx, _entityID, _userID)
-	session, err := s.ReadSession(ctx, sessionID)
+	activeSessions, err := s.GetActiveSessions(ctx, _entityID, _userID)
 	if err != nil {
 		return nil, err
 	}
-	if session == nil {
-		return nil, fmt.Errorf("No active session for that user. Please, log in")
-	}
-	isexpired, err := s.IsSessionExpired(ctx, session)
-	if err != nil {
-		return nil, err
-	}
-	if !isexpired {
-		user, err := s.ReadUser(ctx, _userID)
+	if len(activeSessions) == 1 {
+		session := activeSessions[0]
+		isexpired, err := s.IsSessionExpired(ctx, session)
 		if err != nil {
 			return nil, err
 		}
-		if user.Rol == "admin" {
-
-			resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+		if !isexpired {
+			user, err := s.ReadUser(ctx, _userID)
 			if err != nil {
 				return nil, err
 			}
-			defer resultsIterator.Close()
+			if user.Rol == "admin" {
 
-			var medicaments []*Medicament
-			for resultsIterator.HasNext() {
-				queryResponse, err := resultsIterator.Next()
+				resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 				if err != nil {
 					return nil, err
 				}
+				defer resultsIterator.Close()
 
-				var medicament Medicament
-				err = json.Unmarshal(queryResponse.Value, &medicament)
-				if err != nil {
-					return nil, err
+				var medicaments []*Medicament
+				for resultsIterator.HasNext() {
+					queryResponse, err := resultsIterator.Next()
+					if err != nil {
+						return nil, err
+					}
+
+					var medicament Medicament
+					err = json.Unmarshal(queryResponse.Value, &medicament)
+					if err != nil {
+						return nil, err
+					}
+					if medicament.Current_Owner == _entityID {
+						medicaments = append(medicaments, &medicament)
+					}
 				}
-				if medicament.Current_Owner == _entityID {
-					medicaments = append(medicaments, &medicament)
-				}
+
+				return medicaments, nil
+			} else {
+				return nil, fmt.Errorf("Can not access to medicaments without being the admin")
 			}
-
-			return medicaments, nil
 		} else {
-			return nil, fmt.Errorf("Can not access to medicaments without being the admin")
+			return nil, fmt.Errorf("Session expired. Log in again, please")
 		}
+	} else if len(activeSessions) == 0 {
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
+
 	} else {
-		return nil, fmt.Errorf("Session expired. Log in again, please")
+		s.LogOut(ctx, _entityID, _userID)
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
 	}
 }
 
 // function that returns all registered users of an entity in the system
 func (s *SmartContract) GetAllUsers(ctx contractapi.TransactionContextInterface, _userID string, _entityID string) ([]*Entity_User, error) {
-	sessionID := s.GenerateSessionID(ctx, _entityID, _userID)
-	session, err := s.ReadSession(ctx, sessionID)
+	activeSessions, err := s.GetActiveSessions(ctx, _entityID, _userID)
 	if err != nil {
 		return nil, err
 	}
-	if session == nil {
-		return nil, fmt.Errorf("No active session for that user. Please, log in")
-	}
-	isexpired, err := s.IsSessionExpired(ctx, session)
-	if err != nil {
-		return nil, err
-	}
-	if !isexpired {
-
-		entity, err := s.ReadEntity(ctx, _entityID)
+	if len(activeSessions) == 1 {
+		session := activeSessions[0]
+		isexpired, err := s.IsSessionExpired(ctx, session)
 		if err != nil {
 			return nil, err
 		}
+		if !isexpired {
 
-		users := entity.Entity_Users
-
-		currentUser, err := s.ReadUser(ctx, _userID)
-		if err != nil {
-			return nil, err
-		}
-		if currentUser.Rol == "admin" {
-			var usersEntity []*Entity_User
-			for _, userEntityID := range users {
-				user, err := s.ReadUser(ctx, userEntityID)
-				if err != nil {
-					return nil, err
-				}
-				usersEntity = append(usersEntity, user)
+			entity, err := s.ReadEntity(ctx, _entityID)
+			if err != nil {
+				return nil, err
 			}
-			return usersEntity, nil
+
+			users := entity.Entity_Users
+
+			currentUser, err := s.ReadUser(ctx, _userID)
+			if err != nil {
+				return nil, err
+			}
+			if currentUser.Rol == "admin" {
+				var usersEntity []*Entity_User
+				for _, userEntityID := range users {
+					user, err := s.ReadUser(ctx, userEntityID)
+					if err != nil {
+						return nil, err
+					}
+					usersEntity = append(usersEntity, user)
+				}
+				return usersEntity, nil
+			} else {
+				return nil, fmt.Errorf("Can not access to users without being the admin")
+			}
+
 		} else {
-			return nil, fmt.Errorf("Can not access to users without being the admin")
+			return nil, fmt.Errorf("Session expired. Log in again, please")
 		}
+	} else if len(activeSessions) == 0 {
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
 
 	} else {
-		return nil, fmt.Errorf("Session expired. Log in again, please")
+		s.LogOut(ctx, _entityID, _userID)
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
 	}
 }
