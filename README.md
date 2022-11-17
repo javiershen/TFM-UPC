@@ -4,6 +4,10 @@ This is a project simulating a pharma industry use case where blockchain can be 
 
 ![Network](https://i.ibb.co/3v4KnGb/Screenshot-2022-11-17-at-21-40-03.png)
 
+## Prerequisites
+
+Check the documentation of Hyperledger Fabric, in order to download the required prerequisites to run the network: https://hlf.readthedocs.io/en/latest/prereqs.html
+
 ## Set the network
 
 In order to set up the network, run the following commands in order to set and run the network.
