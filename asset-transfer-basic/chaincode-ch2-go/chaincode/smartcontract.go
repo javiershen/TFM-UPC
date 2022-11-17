@@ -664,7 +664,7 @@ func (s *SmartContract) ReadPrescription(ctx contractapi.TransactionContextInter
 		return nil, fmt.Errorf("failed to read from world state: %v", err)
 	}
 	if assetJSON == nil {
-		return nil, fmt.Errorf("the prescription %s does not exist", _PatientID)
+		return nil, fmt.Errorf("the patient with ID %s does have this prescription", _PatientID)
 	}
 
 	var prescription Prescription
