@@ -9,7 +9,6 @@ import (
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
-// SmartContract provides functions for managing an Asset
 type SmartContract struct {
 	contractapi.Contract
 }
@@ -53,7 +52,7 @@ type Medicament struct {
 	Product_Code     int             `json:"Product_Code"`
 	Seller_Pharmacy  string          `json:"Seller_Pharmacy"`
 	Serial_Number    string          `json:"Serial_Number"`
-	Status           int             `json:"Status"` // 1: creado | 2: despachado de lab | 3: recibido por farmacia | 4: dispensado | 5: indispensable por motivo que sea
+	Status           int             `json:"Status"` // 1: creado | 2: despachado de lab | 3: recibido por farmacia | 4: dispensado
 }
 
 type Session struct {
@@ -66,7 +65,7 @@ type Session struct {
 // invoke function to call tracking points functions
 func (s *SmartContract) Invoke(ctx contractapi.TransactionContextInterface) error {
 	args := ctx.GetStub().GetStringArgs()
-	correctArgs, err := s.areArgumentsCorrect(ctx, args[1:]) //first argument is Invoke function, we don't need it
+	correctArgs, err := s.areArgumentsCorrect(ctx, args[1:])
 	if err != nil {
 		return err
 	}
@@ -366,9 +365,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 
 	medicaments := []Medicament{
 		{Medicament_Name: "Ibuprofeno", Product_Code: 8470008722513, Serial_Number: "6874352687", Lot_Number: "L201JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1", Dates: MedDates},
-		{Medicament_Name: "Ibuprofeno", Product_Code: 8470008722513, Serial_Number: "6874352688", Lot_Number: "L201JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1", Dates: MedDates},
 		{Medicament_Name: "Paracetamol", Product_Code: 8470006723459, Serial_Number: "7874352687", Lot_Number: "L101JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1", Dates: MedDates},
-		{Medicament_Name: "Paracetamol", Product_Code: 8470006723459, Serial_Number: "7874352688", Lot_Number: "L101JX32", Expiration_Year: 2024, Expiration_Month: 04, Status: 1, Producer_Lab: "lab1", Seller_Pharmacy: "", Current_Owner: "lab1", Dates: MedDates},
 	}
 
 	for _, medicament := range medicaments {
