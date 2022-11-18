@@ -38,7 +38,7 @@ do
             break
             ;;
         "2- Send a medicament to a pharmacy")
-            echo PRODUCT CODE:
+            echo MEDICAMENT SERIAL NUMBER:
             read product_code
             export PRODUCT_CODE="$product_code"
             echo Medicament destination:
