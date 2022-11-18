@@ -100,7 +100,7 @@ Which of the following actions you want to do: 1
 Once the medicine is recieved by the pharmacy and notified to the pharmacy-hospital channel2, at the hospital side you will have to create a prescription in order to allow its dispatchment.
 
 To do so, first we will have to log in with a member of the hospital (user or admin), then the hospital member will be able to generate a prescription for the patient.
-1- Generate prescription" "3- Quit"
+
 ```
 $ ./userSanitaryFunctions.sh
 1) 1- Generate prescription
@@ -111,12 +111,13 @@ Which of the following actions you want to do: 1
 
 ### User receives the medicine (Consume prescription and medicine dispatchment)
 
-Once the prescription is generated and received at the channel, the patient will be able to go to the pharmacy and ask for the medicine that was asigned to him. In order to get the medicine, the prescription will be consumed and the medicine will be dispatched from the pharmacy.
+Once the prescription is generated and received at the channel, the patient will be able to go to the pharmacy and ask for the medicine that was asigned to him. In order to get the medicine, the prescription needs to be validated first in order to be consumed. After that, the medicine will be registered as dispensed from the pharmacy. For that, the pharmacy user must be logged on both channels again. 
 
 ```
 $ ./userPharmacyFunctions.sh
-1) 1- Receive a medicament   3) 3- Dispense a medicament
-2) 2- Use prescription       4) 4- Quit
+1) 1- Receive a medicament   
+2) 2- Use prescription and dispense medicament  
+3) 3- Quit
 Which of the following actions you want to do: 2
 ```
 
