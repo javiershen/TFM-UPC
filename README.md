@@ -115,9 +115,9 @@ Once the prescription is generated and received at the channel, the patient will
 
 ```
 $ ./userPharmacyFunctions.sh
-1) 1- Receive a medicament   3) 3- Use prescription
-2) 2- Dispense a medicament  4) 4- Quit
-Which of the following actions you want to do:
+1) 1- Receive a medicament   3) 3- Dispense a medicament
+2) 2- Use prescription       4) 4- Quit
+Which of the following actions you want to do: 2
 ```
 
 ### More information
