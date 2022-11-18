@@ -4,13 +4,13 @@
 # Exit on first error
 
 
-echo ENTITY_ID_C1 pharmacy2 lab1:
+echo ENTITY ID - pharmacy2 lab1:
 read entity
 export ENTITY_ID_C1="$entity"
-echo USERNAME_C1 userLab adminLab userPharmacy adminPharmacy:
+echo USER NAME - userLab adminLab userPharmacy adminPharmacy:
 read username
 export USERNAME_C1="$username"
-echo USER_PASSWORD_C1 adminpw:
+echo PASSWORD:
 read userpassword
 export USER_PASSWORD_C1="$userpassword"
 echo You are logged with user "${USERNAME_C1}"
