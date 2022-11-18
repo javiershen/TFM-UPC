@@ -291,8 +291,8 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 	}
 
 	pharmacy_Users := []Entity_User{
-		{User_Name: "pharmacyUser", User_ID: "pharmacyUser", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
-		{User_Name: "pharmacyAdmin", User_ID: "pharmacyAdmin", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
+		{User_Name: "userPharmacy", User_ID: "userPharmacy", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
+		{User_Name: "adminPharmacy", User_ID: "adminPharmacy", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
 	}
 
 	pharmacy_UsersID := []string{}
@@ -402,7 +402,7 @@ func (s *SmartContract) AddMedicamentToStock(ctx contractapi.TransactionContextI
 	if err != nil {
 		return err
 	}
-	_medicament_Name := args[1]
+	// _medicament_Name := args[1]
 
 	//REVISAR SI EL MEDICAMENTO EXISTE
 	stock, _ := s.ReadStock(ctx, _entityID+"-Stock")
@@ -422,7 +422,7 @@ func (s *SmartContract) AddMedicamentToStock(ctx contractapi.TransactionContextI
 
 	if !found {
 		newMedicament := Medicament{
-			Medicament_Name: _medicament_Name,
+			Medicament_Name: args[1],
 			Product_Code:    _medicament_Code,
 			Quantity:        1,
 		}
@@ -439,7 +439,7 @@ func (s *SmartContract) AddMedicamentToStock(ctx contractapi.TransactionContextI
 		}
 		return nil
 	} else {
-		if medicament.Medicament_Name == _medicament_Name {
+		if medicament.Medicament_Name == args[1] {
 			medicament.Quantity++
 			medicamentsUnmodified = append(medicamentsUnmodified, medicament)
 

@@ -7,7 +7,7 @@
 echo ENTITY_ID_C2 pharmacy2 hospital1:
 read entity
 export ENTITY_ID_C2="$entity"
-echo USERNAME sanitaryUser adminLab pharmacyUser pharmacyAdmin:
+echo USERNAME sanitaryUser adminLab userPharmacy adminPharmacy:
 read username
 export USERNAME_C2="$username"
 echo USER_PASSWORD_C2 adminpw:
