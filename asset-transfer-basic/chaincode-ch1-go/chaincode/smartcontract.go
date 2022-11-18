@@ -299,8 +299,8 @@ func (s *SmartContract) GenerateSessionID(ctx contractapi.TransactionContextInte
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 
 	lab_Users := []Entity_User{
-		{User_Name: "userLab", User_ID: "userLab", Email: "lab@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
-		{User_Name: "adminLab", User_ID: "adminLab", Email: "lab@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
+		{User_Name: "userLab", User_ID: "userLab", Email: "lab@pg.com", Rol: "user", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
+		{User_Name: "adminLab", User_ID: "adminLab", Email: "lab@pg.com", Rol: "admin", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
 	}
 
 	lab_UsersID := []string{}
@@ -319,8 +319,8 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 	}
 
 	pharmacy_Users := []Entity_User{
-		{User_Name: "userPharmacy", User_ID: "userPharmacy", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
-		{User_Name: "adminPharmacy", User_ID: "adminPharmacy", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
+		{User_Name: "userPharmacy", User_ID: "userPharmacy", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
+		{User_Name: "adminPharmacy", User_ID: "adminPharmacy", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
 	}
 
 	pharmacy_UsersID := []string{}
@@ -987,6 +987,19 @@ func (s *SmartContract) GetMedicament(ctx contractapi.TransactionContextInterfac
 			return nil, err
 		}
 		if !isexpired {
+			entity, err := s.ReadEntity(ctx, _entityID)
+			if err != nil {
+				return nil, err
+			}
+			users := entity.Entity_Users
+			userInEntity, err := s.isUserInEntity(ctx, _userID, users)
+
+			if err != nil {
+				return nil, err
+			}
+			if !userInEntity {
+				return nil, fmt.Errorf("Invalid user")
+			}
 			user, err := s.ReadUser(ctx, _userID)
 			if err != nil {
 				return nil, err
@@ -1028,6 +1041,18 @@ func (s *SmartContract) GetAllMedicaments(ctx contractapi.TransactionContextInte
 			return nil, err
 		}
 		if !isexpired {
+			entity, err := s.ReadEntity(ctx, _entityID)
+			if err != nil {
+				return nil, err
+			}
+			users := entity.Entity_Users
+			userInEntity, err := s.isUserInEntity(ctx, _userID, users)
+			if err != nil {
+				return nil, err
+			}
+			if !userInEntity {
+				return nil, fmt.Errorf("Invalid user")
+			}
 			user, err := s.ReadUser(ctx, _userID)
 			if err != nil {
 				return nil, err
@@ -1091,14 +1116,22 @@ func (s *SmartContract) GetAllUsers(ctx contractapi.TransactionContextInterface,
 			if err != nil {
 				return nil, err
 			}
-
 			users := entity.Entity_Users
+			userInEntity, err := s.isUserInEntity(ctx, _userID, users)
+			if err != nil {
+				return nil, err
+			}
+			if !userInEntity {
+				return nil, fmt.Errorf("Invalid user")
+			}
 
 			currentUser, err := s.ReadUser(ctx, _userID)
 			if err != nil {
 				return nil, err
 			}
+
 			if currentUser.Rol == "admin" {
+
 				var usersEntity []*Entity_User
 				for _, userEntityID := range users {
 					user, err := s.ReadUser(ctx, userEntityID)
