@@ -52,14 +52,14 @@ type Medicament struct {
 	Product_Code     int             `json:"Product_Code"`
 	Seller_Pharmacy  string          `json:"Seller_Pharmacy"`
 	Serial_Number    string          `json:"Serial_Number"`
-	Status           int             `json:"Status"` // 1: creado | 2: despachado de lab | 3: recibido por farmacia | 4: dispensado
+	Status           int             `json:"Status"` // 1: created | 2: dispatched from lab | 3: received by farmacy | 4: dispensed by farmacy
 }
 
 type Session struct {
 	EntityID       string `json:"EntityID"`
 	GenerationDate string `json:"GenerationDate"`
 	SessionID      string `json:"SessionID"`
-	Status         int    `json:"Status"` // 1: activa | 0: inactiva
+	Status         int    `json:"Status"` // 1: active | 0: inactive
 }
 
 // invoke function to call tracking points functions
