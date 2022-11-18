@@ -57,7 +57,7 @@ type Prescription struct {
 	Prescripted_Medicament int    `json:"Prescripted_Medicament"`
 	Sanitary_EntityID      string `json:"Sanitary_EntityID"`
 	Sanitary_UserID        string `json:"Sanitary_UserID"`
-	Status                 int    `json:"Status"` // 1: creado | 2: utilizada en una pharma
+	Status                 int    `json:"Status"` // 1: sirve 0: gastada 2: deshabilitada
 
 }
 
@@ -101,6 +101,8 @@ func (s *SmartContract) Invoke(ctx contractapi.TransactionContextInterface) erro
 						return s.GeneratePrescription(ctx, entityID, userID, allArgs)
 					} else if function == "ConsumePrescription" {
 						return s.ConsumePrescription(ctx, entityID, userID, allArgs)
+					} else if function == "AddMedicamentToStock" {
+						return s.AddMedicamentToStock(ctx, entityID, allArgs)
 					}
 					return fmt.Errorf("Invalid function")
 				}
@@ -271,8 +273,8 @@ func (s *SmartContract) GenerateSessionID(ctx contractapi.TransactionContextInte
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 
 	sanitary_Users := []Entity_User{
-		{User_Name: "sanitaryUser", User_ID: "sanitaryUser", Email: "sanitary@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
-		{User_Name: "adminLab", User_ID: "adminLab", Email: "sanitary@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
+		{User_Name: "userSanitary", User_ID: "userSanitary", Email: "sanitary@pg.com", Rol: "user", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
+		{User_Name: "adminSanitary", User_ID: "adminSanitary", Email: "sanitary@pg.com", Rol: "admin", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
 	}
 
 	sanitary_UsersID := []string{}
@@ -291,8 +293,8 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 	}
 
 	pharmacy_Users := []Entity_User{
-		{User_Name: "userPharmacy", User_ID: "userPharmacy", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
-		{User_Name: "adminPharmacy", User_ID: "adminPharmacy", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "adminpw", Sessions_Log: []string{}},
+		{User_Name: "userPharmacy", User_ID: "userPharmacy", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
+		{User_Name: "adminPharmacy", User_ID: "adminPharmacy", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
 	}
 
 	pharmacy_UsersID := []string{}
@@ -369,7 +371,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		return err
 	}
 
-	err = ctx.GetStub().PutState(prescription.PatientID, assetJSON)
+	err = ctx.GetStub().PutState(prescription.PatientID+strconv.Itoa(prescription.Prescripted_Medicament), assetJSON)
 	if err != nil {
 		return fmt.Errorf("failed to put to world state. %v", err)
 	}
@@ -398,14 +400,14 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 }
 
 func (s *SmartContract) AddMedicamentToStock(ctx contractapi.TransactionContextInterface, _entityID string, args []string) error {
+
 	_medicament_Code, err := strconv.Atoi(args[0])
 	if err != nil {
 		return err
 	}
-	// _medicament_Name := args[1]
-
+	_medicament_Name := args[1]
 	//REVISAR SI EL MEDICAMENTO EXISTE
-	stock, _ := s.ReadStock(ctx, _entityID+"-Stock")
+	stock, _ := s.ReadStock(ctx, _entityID)
 
 	var medicament Medicament
 	medicamentsUnmodified := []Medicament{}
@@ -413,8 +415,12 @@ func (s *SmartContract) AddMedicamentToStock(ctx contractapi.TransactionContextI
 
 	for _, med := range stock.Medicaments {
 		if med.Product_Code == _medicament_Code {
-			medicament = med
-			found = true
+			if med.Medicament_Name == _medicament_Name {
+				medicament = med
+				found = true
+			} else {
+				fmt.Errorf("Invalid medicament name")
+			}
 		} else {
 			medicamentsUnmodified = append(medicamentsUnmodified, medicament)
 		}
@@ -422,7 +428,7 @@ func (s *SmartContract) AddMedicamentToStock(ctx contractapi.TransactionContextI
 
 	if !found {
 		newMedicament := Medicament{
-			Medicament_Name: args[1],
+			Medicament_Name: _medicament_Name,
 			Product_Code:    _medicament_Code,
 			Quantity:        1,
 		}
@@ -510,7 +516,7 @@ func (s *SmartContract) GeneratePrescription(ctx contractapi.TransactionContextI
 		return err
 	}
 
-	err = ctx.GetStub().PutState(prescription.PatientID, medJSON)
+	err = ctx.GetStub().PutState(prescription.PatientID+strconv.Itoa(prescription.Prescripted_Medicament), medJSON)
 	if err != nil {
 		return err
 	}
@@ -520,7 +526,7 @@ func (s *SmartContract) GeneratePrescription(ctx contractapi.TransactionContextI
 
 func (s *SmartContract) IsMedicamentOnStock(ctx contractapi.TransactionContextInterface, _entityID string, _medicament_Code int) bool {
 	//REVISAR SI EL MEDICAMENTO EXISTE
-	stock, _ := s.ReadStock(ctx, _entityID+"-Stock")
+	stock, _ := s.ReadStock(ctx, _entityID)
 
 	for _, med := range stock.Medicaments {
 		if med.Product_Code == _medicament_Code && med.Quantity > 0 {
@@ -532,7 +538,7 @@ func (s *SmartContract) IsMedicamentOnStock(ctx contractapi.TransactionContextIn
 
 func (s *SmartContract) UpdateStock(ctx contractapi.TransactionContextInterface, _entityID string, _medicament_Code int) error {
 	//REVISAR SI EL MEDICAMENTO EXISTE
-	stock, _ := s.ReadStock(ctx, _entityID+"-Stock")
+	stock, _ := s.ReadStock(ctx, _entityID)
 
 	var medicament Medicament
 	medicamentsUnmodified := []Medicament{}
@@ -579,7 +585,7 @@ func (s *SmartContract) ConsumePrescription(ctx contractapi.TransactionContextIn
 	} else {
 		//OBTENGO EL ASSET Y COMPRUEBO QUE EXISTE
 		_PatientID := args[1]
-		prescription, err := s.ReadPrescription(ctx, _PatientID)
+		prescription, err := s.ReadPrescription(ctx, _PatientID+args[0])
 		if err != nil {
 			return err
 		}
@@ -682,6 +688,17 @@ func (s *SmartContract) areArgumentsCorrect(ctx contractapi.TransactionContextIn
 			return false, fmt.Errorf("Patient ID must be provided")
 		}
 		return true, nil
+	} else if function == "AddMedicamentToStock" {
+		if len(_allArgs) != 2 {
+			return false, fmt.Errorf("Incorrect number of arguments")
+		}
+		if len(_allArgs[0]) == 0 {
+			return false, fmt.Errorf("Medicament Code must be provided")
+		}
+		if len(_allArgs[1]) == 0 {
+			return false, fmt.Errorf("Medicament Name must be provided")
+		}
+		return true, nil
 	} else if function == "LogIn" {
 		if len(_allArgs) != 1 {
 			return false, fmt.Errorf("Incorrect number of arguments")
@@ -733,7 +750,7 @@ func (s *SmartContract) isFunctionAccessible(ctx contractapi.TransactionContextI
 			}
 
 		} else if entity.Type == "pharmacy" {
-			if _function == "ConsumePrescription" {
+			if _function == "ConsumePrescription" || _function == "AddMedicamentToStock" {
 				return true, nil
 			}
 		} else {
@@ -777,13 +794,13 @@ func (s *SmartContract) ReadStock(ctx contractapi.TransactionContextInterface, _
 	return &stock, nil
 }
 
-func (s *SmartContract) ReadPrescription(ctx contractapi.TransactionContextInterface, _PatientID string) (*Prescription, error) {
-	assetJSON, err := ctx.GetStub().GetState(_PatientID)
+func (s *SmartContract) ReadPrescription(ctx contractapi.TransactionContextInterface, _PrescriptionID string) (*Prescription, error) {
+	assetJSON, err := ctx.GetStub().GetState(_PrescriptionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from world state: %v", err)
 	}
 	if assetJSON == nil {
-		return nil, fmt.Errorf("the prescription %s does not exist", _PatientID)
+		return nil, fmt.Errorf("the prescription %s does not exist", _PrescriptionID)
 	}
 
 	var prescription Prescription
@@ -854,7 +871,6 @@ func (s *SmartContract) GetActiveSessions(ctx contractapi.TransactionContextInte
 	} else {
 		return nil, fmt.Errorf("Invalid User")
 	}
-
 }
 
 func (s *SmartContract) LogOut(ctx contractapi.TransactionContextInterface, _Entity_ID string, _User_ID string) error {
@@ -888,7 +904,6 @@ func (s *SmartContract) LogOut(ctx contractapi.TransactionContextInterface, _Ent
 	} else {
 		return fmt.Errorf("Invalid User")
 	}
-
 }
 
 func (s *SmartContract) GetSessions(ctx contractapi.TransactionContextInterface, _Entity_ID string, _User_ID string) ([]*Session, error) {
@@ -912,7 +927,6 @@ func (s *SmartContract) GetSessions(ctx contractapi.TransactionContextInterface,
 	} else {
 		return nil, fmt.Errorf("Invalid User")
 	}
-
 }
 
 // function that returns a registered session given an session id
@@ -962,8 +976,14 @@ func (s *SmartContract) GetAllUsers(ctx contractapi.TransactionContextInterface,
 			if err != nil {
 				return nil, err
 			}
-
 			users := entity.Entity_Users
+			userInEntity, err := s.isUserInEntity(ctx, _userID, users)
+			if err != nil {
+				return nil, err
+			}
+			if !userInEntity {
+				return nil, fmt.Errorf("Invalid user")
+			}
 
 			currentUser, err := s.ReadUser(ctx, _userID)
 			if err != nil {
@@ -993,4 +1013,103 @@ func (s *SmartContract) GetAllUsers(ctx contractapi.TransactionContextInterface,
 		s.LogOut(ctx, _entityID, _userID)
 		return nil, fmt.Errorf("No active session for that user. Please, log in")
 	}
+}
+
+// function that returns all registered users of an entity in the system
+func (s *SmartContract) GetPharmacyStock(ctx contractapi.TransactionContextInterface, _userID string, _entityID string) ([]Medicament, error) {
+	activeSessions, err := s.GetActiveSessions(ctx, _entityID, _userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(activeSessions) == 1 {
+		session := activeSessions[0]
+		isexpired, err := s.IsSessionExpired(ctx, session)
+		if err != nil {
+			return nil, err
+		}
+		if !isexpired {
+			entity, err := s.ReadEntity(ctx, _entityID)
+			if err != nil {
+				return nil, err
+			}
+			users := entity.Entity_Users
+			userInEntity, err := s.isUserInEntity(ctx, _userID, users)
+			if err != nil {
+				return nil, err
+			}
+			if !userInEntity {
+				return nil, fmt.Errorf("Invalid user")
+			}
+
+			currentUser, err := s.ReadUser(ctx, _userID)
+			if err != nil {
+				return nil, err
+			}
+			if currentUser.Rol == "admin" {
+				stock, err := s.ReadStock(ctx, _entityID)
+				if err != nil {
+					return nil, err
+				}
+
+				return stock.Medicaments, nil
+			} else {
+				return nil, fmt.Errorf("Can not access to users without being the admin")
+			}
+
+		} else {
+			return nil, fmt.Errorf("Session expired. Log in again, please")
+		}
+	} else if len(activeSessions) == 0 {
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
+
+	} else {
+		s.LogOut(ctx, _entityID, _userID)
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
+	}
+
+}
+
+// function that returns all registered users of an entity in the system
+func (s *SmartContract) GetPrescription(ctx contractapi.TransactionContextInterface, _userID string, _entityID string, _medCode string, _patientID string) (*Prescription, error) {
+	activeSessions, err := s.GetActiveSessions(ctx, _entityID, _userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(activeSessions) == 1 {
+		session := activeSessions[0]
+		isexpired, err := s.IsSessionExpired(ctx, session)
+		if err != nil {
+			return nil, err
+		}
+		if !isexpired {
+			entity, err := s.ReadEntity(ctx, _entityID)
+			if err != nil {
+				return nil, err
+			}
+			users := entity.Entity_Users
+			userInEntity, err := s.isUserInEntity(ctx, _userID, users)
+			if err != nil {
+				return nil, err
+			}
+			if !userInEntity {
+				return nil, fmt.Errorf("Invalid user")
+			}
+
+			prescription, err := s.ReadPrescription(ctx, _patientID+_medCode)
+			if err != nil {
+				return nil, err
+			}
+			return prescription, nil
+
+		} else {
+			return nil, fmt.Errorf("Session expired. Log in again, please")
+		}
+	} else if len(activeSessions) == 0 {
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
+
+	} else {
+		s.LogOut(ctx, _entityID, _userID)
+		return nil, fmt.Errorf("No active session for that user. Please, log in")
+	}
+
 }
