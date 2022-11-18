@@ -60,7 +60,7 @@ $ ./userLabFunctions.sh
 Which of the following actions you want to do: 1
 ```
 
-Once we selected the option, we have to introduce the medicine data: Medicine Name, the medicine product code, its serial number, the expiration year and the expiration month.
+Once we selected the option, we have to introduce the medicine data: Medicine Name, the medicine product code, its serial number, the lot number, the expiration year and the expiration month.
 
 ### Read created medicine / Read all users / Read all medicines
 
@@ -86,7 +86,7 @@ Which of the following actions you want to do: 2
 
 ### Notify received medicine
 
-When the medicine is received by the pharmacy. The pharmacy, throught a pharmacy user or admin, will have to notify that it was received to both channels.
+When the medicine is received by the pharmacy. The pharmacy, throught a pharmacy user or admin, will have to notify that it was received to both channels. Therefore, the pharmacy user needs to be logged on both channels. 
 
 ```
 $ ./userPharmacyFunctions.sh
@@ -100,9 +100,13 @@ Which of the following actions you want to do: 1
 Once the medicine is recieved by the pharmacy and notified to the pharmacy-hospital channel2, at the hospital side you will have to create a prescription in order to allow its dispatchment.
 
 To do so, first we will have to log in with a member of the hospital (user or admin), then the hospital member will be able to generate a prescription for the patient.
-
+1- Generate prescription" "3- Quit"
 ```
-./generatePrescription.sh
+$ ./userSanitaryFunctions.sh
+1) 1- Generate prescription
+2) 2- See prescription 
+3) 3- Quit
+Which of the following actions you want to do: 1
 ```
 
 ### User receives the medicine (Consume prescription and medicine dispatchment)
