@@ -119,6 +119,7 @@ func (s *SmartContract) Invoke(ctx contractapi.TransactionContextInterface) erro
 	return fmt.Errorf("Function inaccessible")
 }
 
+// function that validates if the password of a given user corresponds to the passed password
 func (s *SmartContract) IsPswCorrect(ctx contractapi.TransactionContextInterface, _UserID string, _psw string) (bool, error) {
 	user, err := s.ReadUser(ctx, _UserID)
 	if err != nil {
@@ -130,6 +131,7 @@ func (s *SmartContract) IsPswCorrect(ctx contractapi.TransactionContextInterface
 	return true, nil
 }
 
+// function that creates a new session for a logged user
 func (s *SmartContract) CreateSession(ctx contractapi.TransactionContextInterface, _sessionID string, _entityID string, _userID string) error {
 	actualDateStr, err := s.GetTxTimestamp(ctx)
 	if err != nil {
@@ -153,6 +155,7 @@ func (s *SmartContract) CreateSession(ctx contractapi.TransactionContextInterfac
 	return nil
 }
 
+// function that stores a session of a user in the user log
 func (s *SmartContract) StoreSession(ctx contractapi.TransactionContextInterface, _sessionID string, _userID string) error {
 	user, err := s.ReadUser(ctx, _userID)
 	if err != nil {
@@ -171,6 +174,7 @@ func (s *SmartContract) StoreSession(ctx contractapi.TransactionContextInterface
 	return nil
 }
 
+// function that checks if a session is expired and modifies its state in that case
 func (s *SmartContract) IsSessionExpired(ctx contractapi.TransactionContextInterface, _session *Session) (bool, error) {
 	if _session.Status == 1 {
 		actualDateStr, err := s.GetTxTimestamp(ctx)
@@ -200,6 +204,7 @@ func (s *SmartContract) IsSessionExpired(ctx contractapi.TransactionContextInter
 	return true, fmt.Errorf("Session expired. Log in again, please")
 }
 
+// function used to log in with a user of a given entity
 func (s *SmartContract) LogIn(ctx contractapi.TransactionContextInterface, _entityID string, _userName string, _psw string) error {
 	entity, err := s.ReadEntity(ctx, _entityID)
 	if err != nil {
@@ -230,36 +235,10 @@ func (s *SmartContract) LogIn(ctx contractapi.TransactionContextInterface, _enti
 				s.LogOut(ctx, _entityID, user.User_ID)
 			}
 			sessionID := s.GenerateSessionID(ctx)
-			//session, err := s.ReadSessions(ctx, sessionID)
-			/* if err != nil {
-				return err
-			} */
-			//if session == nil {
+
 			s.CreateSession(ctx, sessionID, _entityID, user.User_ID)
 			s.StoreSession(ctx, sessionID, user.User_ID)
-			/* } else {
-				isExpired, err := s.IsSessionExpired(ctx, session)
-				if err != nil {
-					return err
-				}
-				if isExpired {
-					actualDateStr, err := s.GetTxTimestamp(ctx)
-					if err != nil {
-						return err
-					}
-					session.GenerationDate = actualDateStr
-					session.Status = 1
-					assetJSON, err := json.Marshal(session)
-					if err != nil {
-						return err
-					}
 
-					err = ctx.GetStub().PutState(session.SessionID, assetJSON)
-					if err != nil {
-						return err
-					}
-				}
-			} */
 			return nil
 		} else {
 			return fmt.Errorf("Wrong credentials")
@@ -269,6 +248,7 @@ func (s *SmartContract) LogIn(ctx contractapi.TransactionContextInterface, _enti
 	return fmt.Errorf("Invalid user")
 }
 
+// function that returns the current counter for sessions
 func (s *SmartContract) GetCounter(ctx contractapi.TransactionContextInterface) int {
 	counterJSON, _ := ctx.GetStub().GetState("SessionCounter")
 
@@ -278,6 +258,7 @@ func (s *SmartContract) GetCounter(ctx contractapi.TransactionContextInterface) 
 	return counter.Count
 }
 
+// function that increments the counter for sessions
 func (s *SmartContract) IncrementCounter(ctx contractapi.TransactionContextInterface, _counter int) {
 	_count := _counter + 1
 	counter := Counter{Count: _count}
@@ -286,6 +267,7 @@ func (s *SmartContract) IncrementCounter(ctx contractapi.TransactionContextInter
 	_ = ctx.GetStub().PutState("SessionCounter", counterJSON)
 }
 
+// function that generates a unique session ID
 func (s *SmartContract) GenerateSessionID(ctx contractapi.TransactionContextInterface) string {
 
 	counter := s.GetCounter(ctx)
@@ -297,6 +279,7 @@ func (s *SmartContract) GenerateSessionID(ctx contractapi.TransactionContextInte
 // InitLedger adds a base set of medicaments, entities and entity users to the ledger
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 
+	//creation of lab users
 	lab_Users := []Entity_User{
 		{User_Name: "userLab", User_ID: "userLab", Email: "lab@pg.com", Rol: "user", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
 		{User_Name: "adminLab", User_ID: "adminLab", Email: "lab@pg.com", Rol: "admin", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
@@ -317,6 +300,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		}
 	}
 
+	//creation of pharmacy users
 	pharmacy_Users := []Entity_User{
 		{User_Name: "userPharmacy", User_ID: "userPharmacy", Email: "pharmacy@pg.com", Rol: "user", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
 		{User_Name: "adminPharmacy", User_ID: "adminPharmacy", Email: "pharmacy@pg.com", Rol: "admin", Address: "bangalore", Password: "psw", Sessions_Log: []string{}},
@@ -336,6 +320,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		}
 	}
 
+	//creation of lab and pharmacy entities
 	entities := []Entity{
 		{Entity_Name: "lab1", Entity_ID: "lab1", Type: "lab", Entity_Users: lab_UsersID},
 		{Entity_Name: "pharmacy2", Entity_ID: "pharmacy2", Type: "pharmacy", Entity_Users: pharmacy_UsersID},
@@ -352,6 +337,8 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 			return fmt.Errorf("failed to put to world state. %v", err)
 		}
 	}
+
+	//creation of initial medicaments
 	_RegisterDate, err := s.GetTxTimestamp(ctx)
 	if err != nil {
 		return err
@@ -380,6 +367,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		}
 	}
 
+	//start counter
 	counter := Counter{Count: 1}
 	counterJSON, err := json.Marshal(counter)
 	if err != nil {
@@ -395,8 +383,9 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 
 // function to register a medicament
 func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInterface, _entityID string, args []string) error {
+
+	//check that medicament does not exist
 	_Serial_Number := args[2]
-	//REVISAR QUE NO ESTÉ CREADO
 	exists, err := s.MedicamentExists(ctx, _Serial_Number)
 	if err != nil {
 		return err
@@ -416,7 +405,8 @@ func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInt
 	if err != nil {
 		return err
 	}
-	//REVISAR QUE NO ESTÉ CADUCADO
+
+	//check that medicament is not expired
 	expired, err := s.isExpired(ctx, _Expiration_Year, _Expiration_Month)
 	if err != nil {
 		return err
@@ -425,6 +415,7 @@ func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInt
 		return fmt.Errorf("This medicament is expired, it can not be processed")
 	}
 
+	//initialization and update of dates
 	emptyDates := MedicamentDates{
 		DispatchDate:     "",
 		DispenseDate:     "",
@@ -435,7 +426,8 @@ func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInt
 	if err != nil {
 		return err
 	}
-	//SI TODO VA BIEN, MEDICAMENTO ES REGISTRADO
+
+	//creation of medicament
 	medicament := Medicament{
 		Medicament_Name:  args[0],
 		Product_Code:     _Product_Code,
@@ -449,6 +441,8 @@ func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInt
 		Current_Owner:    _entityID,
 		Dates:            MedDates,
 	}
+
+	//update medicament on ledger
 	medJSON, err := json.Marshal(medicament)
 	if err != nil {
 		return err
@@ -464,19 +458,20 @@ func (s *SmartContract) RegisterMedicament(ctx contractapi.TransactionContextInt
 
 // function to register the dispatch of a medicament
 func (s *SmartContract) DispatchMedicament(ctx contractapi.TransactionContextInterface, _entityID string, args []string) error {
+
+	//obtain medicament to dispatch
 	_Serial_Number := args[1]
-	//OBTENGO EL ASSET Y COMPRUEBO QUE EXISTE
 	medicament, err := s.ReadMedicament(ctx, _Serial_Number)
 	if err != nil {
 		return err
 	}
 
-	//Revisar current owner
+	//Check current owner
 	if medicament.Current_Owner != _entityID {
 		return fmt.Errorf("This medicament does not belong to this lab")
 	}
 
-	//Revisar el future owner
+	//Check future owner
 	receiverEntity, err := s.ReadEntity(ctx, args[0])
 	if err != nil {
 		return err
@@ -485,7 +480,7 @@ func (s *SmartContract) DispatchMedicament(ctx contractapi.TransactionContextInt
 		return fmt.Errorf("The recipient of the medicament must be a pharmacy")
 	}
 
-	//REVISAR QUE NO ESTÉ CADUCADO
+	//check that medicament is not expired
 	expired, err := s.isExpired(ctx, medicament.Expiration_Year, medicament.Expiration_Month)
 	if err != nil {
 		return err
@@ -494,10 +489,10 @@ func (s *SmartContract) DispatchMedicament(ctx contractapi.TransactionContextInt
 		return fmt.Errorf("This medicament is expired, it can not be processed")
 	}
 
-	//SE SETEA EL FUTURE OWNER
+	//set pharmacy ID that will receive the medicament
 	medicament.Seller_Pharmacy = receiverEntity.Entity_ID
 
-	//EL STATUS CAMBIA
+	//modify medicament status
 	status, err := s.getNewStatus(ctx, medicament.Status, "DispatchMedicament")
 	if err != nil {
 		return err
@@ -505,12 +500,14 @@ func (s *SmartContract) DispatchMedicament(ctx contractapi.TransactionContextInt
 
 	medicament.Status = status
 
+	//update dates
 	MedDates, err := s.UpdateDates(ctx, "DispatchMedicament", medicament.Dates)
 	if err != nil {
 		return err
 	}
 	medicament.Dates = MedDates
-	//ASSET ACTUALIZADO
+
+	//update medicament on ledger
 	assetJSON, err := json.Marshal(medicament)
 	if err != nil {
 		return err
@@ -525,19 +522,19 @@ func (s *SmartContract) DispatchMedicament(ctx contractapi.TransactionContextInt
 
 // function to register the receive of a medicament in a pharmacy
 func (s *SmartContract) ReceiveMedicament(ctx contractapi.TransactionContextInterface, _entityID string, args []string) error {
+	//obtain medicament that is received
 	Serial_Number := args[0]
-	//OBTENGO EL ASSET Y COMPRUEBO QUE EXISTE
 	medicament, err := s.ReadMedicament(ctx, Serial_Number)
 	if err != nil {
 		return err
 	}
 
-	//REVISAR QUE EL FUTURE OWNER DEL FARMACO CORRESPONDE A LA FARMACIA QUE EJECUTA ESTA FUNCION
+	//check that the medicament is being received by the correct entity
 	if medicament.Seller_Pharmacy != _entityID {
 		return fmt.Errorf("This medicament is not addressed to this pharmacy")
 	}
 
-	//REVISAR QUE NO ESTÉ CADUCADO
+	//check that medicament is not expired
 	expired, err := s.isExpired(ctx, medicament.Expiration_Year, medicament.Expiration_Month)
 	if err != nil {
 		return err
@@ -548,7 +545,7 @@ func (s *SmartContract) ReceiveMedicament(ctx contractapi.TransactionContextInte
 
 	medicament.Current_Owner = _entityID
 
-	//EL STATUS CAMBIA
+	//modify medicament status
 	status, err := s.getNewStatus(ctx, medicament.Status, "ReceiveMedicament")
 	if err != nil {
 		return err
@@ -556,12 +553,14 @@ func (s *SmartContract) ReceiveMedicament(ctx contractapi.TransactionContextInte
 
 	medicament.Status = status
 
+	//update dates
 	MedDates, err := s.UpdateDates(ctx, "ReceiveMedicament", medicament.Dates)
 	if err != nil {
 		return err
 	}
 	medicament.Dates = MedDates
-	//ASSET ACTUALIZADO
+
+	//update medicament on ledger
 	assetJSON, err := json.Marshal(medicament)
 	if err != nil {
 		return err
@@ -576,19 +575,24 @@ func (s *SmartContract) ReceiveMedicament(ctx contractapi.TransactionContextInte
 
 // function to register the dispense of a medicament in a pharmacy
 func (s *SmartContract) DispenseMedicament(ctx contractapi.TransactionContextInterface, _entityID string, args []string) error {
+	//obtain medicament that is dispensed
 	_Serial_Number := args[0]
-	//OBTENGO EL ASSET Y COMPRUEBO QUE EXISTE
 	medicament, err := s.ReadMedicament(ctx, _Serial_Number)
 	if err != nil {
 		return err
 	}
 
-	//Revisar current owner
+	//check current owner
 	if medicament.Current_Owner != _entityID {
 		return fmt.Errorf("This medicament does not belong to this pharmacy")
 	}
 
-	//REVISAR QUE NO ESTÉ CADUCADO
+	//check dispenser entity
+	if medicament.Seller_Pharmacy != _entityID {
+		return fmt.Errorf("This medicament is not addressed to this pharmacy")
+	}
+
+	//check that medicament is not expired
 	expired, err := s.isExpired(ctx, medicament.Expiration_Year, medicament.Expiration_Month)
 	if err != nil {
 		return err
@@ -597,12 +601,7 @@ func (s *SmartContract) DispenseMedicament(ctx contractapi.TransactionContextInt
 		return fmt.Errorf("This medicament is expired, it can not be processed")
 	}
 
-	//REVISAR QUE EL CURRENT OWNER DEL FARMACO CORRESPONDE A LA FARMACIA QUE EJECUTA ESTA FUNCION
-	if medicament.Seller_Pharmacy != _entityID {
-		return fmt.Errorf("This medicament is not addressed to this pharmacy")
-	}
-
-	//EL STATUS CAMBIA
+	//modify medicament status
 	status, err := s.getNewStatus(ctx, medicament.Status, "DispenseMedicament")
 	if err != nil {
 		return err
@@ -610,13 +609,14 @@ func (s *SmartContract) DispenseMedicament(ctx contractapi.TransactionContextInt
 
 	medicament.Status = status
 
+	//update dates
 	MedDates, err := s.UpdateDates(ctx, "ReceiveMedicament", medicament.Dates)
 	if err != nil {
 		return err
 	}
 	medicament.Dates = MedDates
 
-	//ASSET ACTUALIZADO
+	//update medicament on ledger
 	assetJSON, err := json.Marshal(medicament)
 	if err != nil {
 		return err
@@ -831,6 +831,7 @@ func (s *SmartContract) ReadEntity(ctx contractapi.TransactionContextInterface, 
 	return &entity, nil
 }
 
+// function that returns all the active sessions of a user in an entity, should always be 1 or 0
 func (s *SmartContract) GetActiveSessions(ctx contractapi.TransactionContextInterface, _Entity_ID string, _User_ID string) ([]*Session, error) {
 	user, err := s.ReadUser(ctx, _User_ID)
 	if err != nil {
@@ -855,6 +856,7 @@ func (s *SmartContract) GetActiveSessions(ctx contractapi.TransactionContextInte
 
 }
 
+// function used to log out from all the sessions of a user in an entity
 func (s *SmartContract) LogOut(ctx contractapi.TransactionContextInterface, _Entity_ID string, _User_ID string) error {
 	user, err := s.ReadUser(ctx, _User_ID)
 	if err != nil {
@@ -889,6 +891,7 @@ func (s *SmartContract) LogOut(ctx contractapi.TransactionContextInterface, _Ent
 
 }
 
+// function used to obtain all the sessions of a user in an entity
 func (s *SmartContract) GetSessions(ctx contractapi.TransactionContextInterface, _Entity_ID string, _User_ID string) ([]*Session, error) {
 	user, err := s.ReadUser(ctx, _User_ID)
 	if err != nil {
@@ -942,6 +945,7 @@ func (s *SmartContract) MedicamentExists(ctx contractapi.TransactionContextInter
 	return assetJSON != nil, nil
 }
 
+// function that returns the Tx time stamp
 func (s *SmartContract) GetTxTimestamp(ctx contractapi.TransactionContextInterface) (string, error) {
 	txTimeAsPtr, err := ctx.GetStub().GetTxTimestamp()
 	if err != nil {
@@ -952,6 +956,7 @@ func (s *SmartContract) GetTxTimestamp(ctx contractapi.TransactionContextInterfa
 	return timeStr, nil
 }
 
+// function that updates the registered dates of a medicament depending on the tracking point
 func (s *SmartContract) UpdateDates(ctx contractapi.TransactionContextInterface, function string, _currentDates MedicamentDates) (MedicamentDates, error) {
 	TxDate, err := s.GetTxTimestamp(ctx)
 	if err != nil {
