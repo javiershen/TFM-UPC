@@ -2,7 +2,13 @@
 #
 #
 # Exit on first error
+pushd () {
+    command pushd "$@" > /dev/null
+}
 
+popd () {
+    command popd "$@" > /dev/null
+}
 
 echo PRODUCT CODE:
 read product_code
