@@ -86,7 +86,7 @@ Which of the following actions you want to do: 2
 
 ### Notify received medicine
 
-When the medicine is received by the pharmacy. The pharmacy, throught a pharmacy user or admin, will have to notify that it was received to both channels. Therefore, the pharmacy user needs to be logged on both channels. 
+When the medicine is received by the pharmacy. The pharmacy, throught a pharmacy user or admin, will have to notify that it was received to both channels. Therefore, the pharmacy user needs to be logged on both channels.
 
 ```
 $ ./userPharmacyFunctions.sh
@@ -104,19 +104,19 @@ To do so, first we will have to log in with a member of the hospital (user or ad
 ```
 $ ./userSanitaryFunctions.sh
 1) 1- Generate prescription
-2) 2- See prescription 
+2) 2- See prescription
 3) 3- Quit
 Which of the following actions you want to do: 1
 ```
 
 ### User receives the medicine (Consume prescription and medicine dispatchment)
 
-Once the prescription is generated and received at the channel, the patient will be able to go to the pharmacy and ask for the medicine that was asigned to him. In order to get the medicine, the prescription needs to be validated first in order to be consumed. After that, the medicine will be registered as dispensed from the pharmacy. For that, the pharmacy user must be logged on both channels again. 
+Once the prescription is generated and received at the channel, the patient will be able to go to the pharmacy and ask for the medicine that was asigned to him. In order to get the medicine, the prescription needs to be validated first in order to be consumed. After that, the medicine will be registered as dispensed from the pharmacy. For that, the pharmacy user must be logged on both channels again.
 
 ```
 $ ./userPharmacyFunctions.sh
-1) 1- Receive a medicament   
-2) 2- Use prescription and dispense medicament  
+1) 1- Receive a medicament
+2) 2- Use prescription and dispense medicament
 3) 3- Quit
 Which of the following actions you want to do: 2
 ```
