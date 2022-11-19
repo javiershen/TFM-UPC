@@ -119,91 +119,6 @@ func (s *SmartContract) Invoke(ctx contractapi.TransactionContextInterface) erro
 	return fmt.Errorf("Function inaccessible")
 }
 
-// function that validates if the password of a given user corresponds to the passed password
-func (s *SmartContract) IsPswCorrect(ctx contractapi.TransactionContextInterface, _UserID string, _psw string) (bool, error) {
-	user, err := s.ReadUser(ctx, _UserID)
-	if err != nil {
-		return false, err
-	}
-	if user.Password != _psw {
-		return false, fmt.Errorf("Wrong credentials")
-	}
-	return true, nil
-}
-
-// function that creates a new session for a logged user
-func (s *SmartContract) CreateSession(ctx contractapi.TransactionContextInterface, _sessionID string, _entityID string, _userID string) error {
-	actualDateStr, err := s.GetTxTimestamp(ctx)
-	if err != nil {
-		return err
-	}
-	session := Session{
-		EntityID:       _entityID,
-		GenerationDate: actualDateStr,
-		SessionID:      _sessionID,
-		Status:         1,
-	}
-	sessionJSON, err := json.Marshal(session)
-	if err != nil {
-		return err
-	}
-
-	err = ctx.GetStub().PutState(session.SessionID, sessionJSON)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// function that stores a session of a user in the user log
-func (s *SmartContract) StoreSession(ctx contractapi.TransactionContextInterface, _sessionID string, _userID string) error {
-	user, err := s.ReadUser(ctx, _userID)
-	if err != nil {
-		return err
-	}
-	user.Sessions_Log = append(user.Sessions_Log, _sessionID)
-	userJSON, err := json.Marshal(user)
-	if err != nil {
-		return err
-	}
-
-	err = ctx.GetStub().PutState(_userID, userJSON)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// function that checks if a session is expired and modifies its state in that case
-func (s *SmartContract) IsSessionExpired(ctx contractapi.TransactionContextInterface, _session *Session) (bool, error) {
-	if _session.Status == 1 {
-		actualDateStr, err := s.GetTxTimestamp(ctx)
-		sessionDate, err := time.Parse("2006-01-02 15:04:05 -0700 MST", _session.GenerationDate)
-		if err != nil {
-			return false, err
-		}
-		actualDate, err := time.Parse("2006-01-02 15:04:05 -0700 MST", actualDateStr)
-		if err != nil {
-			return false, err
-		}
-		if sessionDate.Sub(actualDate).Minutes() > 5 {
-			_session.Status = 0
-			assetJSON, err := json.Marshal(_session)
-			if err != nil {
-				return true, err
-			}
-
-			err = ctx.GetStub().PutState(_session.SessionID, assetJSON)
-			if err != nil {
-				return true, err
-			}
-			return true, fmt.Errorf("Session expired. Log in again, please")
-		}
-		return false, nil
-	}
-	return true, fmt.Errorf("Session expired. Log in again, please")
-}
-
 // function used to log in with a user of a given entity
 func (s *SmartContract) LogIn(ctx contractapi.TransactionContextInterface, _entityID string, _userName string, _psw string) error {
 	entity, err := s.ReadEntity(ctx, _entityID)
@@ -246,34 +161,6 @@ func (s *SmartContract) LogIn(ctx contractapi.TransactionContextInterface, _enti
 
 	}
 	return fmt.Errorf("Invalid user")
-}
-
-// function that returns the current counter for sessions
-func (s *SmartContract) GetCounter(ctx contractapi.TransactionContextInterface) int {
-	counterJSON, _ := ctx.GetStub().GetState("SessionCounter")
-
-	var counter Counter
-	json.Unmarshal(counterJSON, &counter)
-
-	return counter.Count
-}
-
-// function that increments the counter for sessions
-func (s *SmartContract) IncrementCounter(ctx contractapi.TransactionContextInterface, _counter int) {
-	_count := _counter + 1
-	counter := Counter{Count: _count}
-	counterJSON, _ := json.Marshal(counter)
-
-	_ = ctx.GetStub().PutState("SessionCounter", counterJSON)
-}
-
-// function that generates a unique session ID
-func (s *SmartContract) GenerateSessionID(ctx contractapi.TransactionContextInterface) string {
-
-	counter := s.GetCounter(ctx)
-	s.IncrementCounter(ctx, counter)
-
-	return strconv.Itoa(counter)
 }
 
 // InitLedger adds a base set of medicaments, entities and entity users to the ledger
@@ -629,6 +516,119 @@ func (s *SmartContract) DispenseMedicament(ctx contractapi.TransactionContextInt
 	return nil
 }
 
+// function that validates if the password of a given user corresponds to the passed password
+func (s *SmartContract) IsPswCorrect(ctx contractapi.TransactionContextInterface, _UserID string, _psw string) (bool, error) {
+	user, err := s.ReadUser(ctx, _UserID)
+	if err != nil {
+		return false, err
+	}
+	if user.Password != _psw {
+		return false, fmt.Errorf("Wrong credentials")
+	}
+	return true, nil
+}
+
+// function that creates a new session for a logged user
+func (s *SmartContract) CreateSession(ctx contractapi.TransactionContextInterface, _sessionID string, _entityID string, _userID string) error {
+	actualDateStr, err := s.GetTxTimestamp(ctx)
+	if err != nil {
+		return err
+	}
+	session := Session{
+		EntityID:       _entityID,
+		GenerationDate: actualDateStr,
+		SessionID:      _sessionID,
+		Status:         1,
+	}
+	sessionJSON, err := json.Marshal(session)
+	if err != nil {
+		return err
+	}
+
+	err = ctx.GetStub().PutState(session.SessionID, sessionJSON)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// function that stores a session of a user in the user log
+func (s *SmartContract) StoreSession(ctx contractapi.TransactionContextInterface, _sessionID string, _userID string) error {
+	user, err := s.ReadUser(ctx, _userID)
+	if err != nil {
+		return err
+	}
+	user.Sessions_Log = append(user.Sessions_Log, _sessionID)
+	userJSON, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	err = ctx.GetStub().PutState(_userID, userJSON)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// function that checks if a session is expired and modifies its state in that case
+func (s *SmartContract) IsSessionExpired(ctx contractapi.TransactionContextInterface, _session *Session) (bool, error) {
+	if _session.Status == 1 {
+		actualDateStr, err := s.GetTxTimestamp(ctx)
+		sessionDate, err := time.Parse("2006-01-02 15:04:05 -0700 MST", _session.GenerationDate)
+		if err != nil {
+			return false, err
+		}
+		actualDate, err := time.Parse("2006-01-02 15:04:05 -0700 MST", actualDateStr)
+		if err != nil {
+			return false, err
+		}
+		if sessionDate.Sub(actualDate).Minutes() > 5 {
+			_session.Status = 0
+			assetJSON, err := json.Marshal(_session)
+			if err != nil {
+				return true, err
+			}
+
+			err = ctx.GetStub().PutState(_session.SessionID, assetJSON)
+			if err != nil {
+				return true, err
+			}
+			return true, fmt.Errorf("Session expired. Log in again, please")
+		}
+		return false, nil
+	}
+	return true, fmt.Errorf("Session expired. Log in again, please")
+}
+
+// function that returns the current counter for sessions
+func (s *SmartContract) GetCounter(ctx contractapi.TransactionContextInterface) int {
+	counterJSON, _ := ctx.GetStub().GetState("SessionCounter")
+
+	var counter Counter
+	json.Unmarshal(counterJSON, &counter)
+
+	return counter.Count
+}
+
+// function that increments the counter for sessions
+func (s *SmartContract) IncrementCounter(ctx contractapi.TransactionContextInterface, _counter int) {
+	_count := _counter + 1
+	counter := Counter{Count: _count}
+	counterJSON, _ := json.Marshal(counter)
+
+	_ = ctx.GetStub().PutState("SessionCounter", counterJSON)
+}
+
+// function that generates a unique session ID
+func (s *SmartContract) GenerateSessionID(ctx contractapi.TransactionContextInterface) string {
+
+	counter := s.GetCounter(ctx)
+	s.IncrementCounter(ctx, counter)
+
+	return strconv.Itoa(counter)
+}
+
 // function that returs the new medicament status after going through a tracking point
 func (s *SmartContract) getNewStatus(ctx contractapi.TransactionContextInterface, _currentStatus int, _function string) (int, error) {
 
@@ -853,7 +853,6 @@ func (s *SmartContract) GetActiveSessions(ctx contractapi.TransactionContextInte
 	} else {
 		return nil, fmt.Errorf("Invalid User")
 	}
-
 }
 
 // function used to log out from all the sessions of a user in an entity
@@ -888,7 +887,6 @@ func (s *SmartContract) LogOut(ctx contractapi.TransactionContextInterface, _Ent
 	} else {
 		return fmt.Errorf("Invalid User")
 	}
-
 }
 
 // function used to obtain all the sessions of a user in an entity
@@ -913,7 +911,6 @@ func (s *SmartContract) GetSessions(ctx contractapi.TransactionContextInterface,
 	} else {
 		return nil, fmt.Errorf("Invalid User")
 	}
-
 }
 
 // function that returns a registered session given an session id
