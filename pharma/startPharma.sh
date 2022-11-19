@@ -3,7 +3,6 @@
 #
 # Exit on first error
 
-
 # don't rewrite paths for Windows Git Bash users
 export MSYS_NO_PATHCONV=1
 starttime=$(date +%s)
@@ -34,8 +33,8 @@ pushd ../test-network/addOrg3
 popd
 pushd ../test-network
 ./network.sh createChannelTwo -c channel2
-./network.sh deployCC -ccn basic1 -ccp ../asset-transfer-basic/chaincode-go -ccl go -c channel1
-./network.sh deployCCTwo -ccn basic2 -ccp ../asset-transfer-basic/chaincode-go -ccl go -c channel2
+./network.sh deployCC -ccn basic1 -ccp ../asset-transfer-basic/chaincode-ch1-go -ccl go -c channel1
+./network.sh deployCCTwo -ccn basic2 -ccp ../asset-transfer-basic/chaincode-ch2-go -ccl go -c channel2
 popd
 
 cat <<EOF
