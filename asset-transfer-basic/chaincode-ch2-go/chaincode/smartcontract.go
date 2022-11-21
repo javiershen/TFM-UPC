@@ -420,7 +420,7 @@ func (s *SmartContract) AddMedicamentToStock(ctx contractapi.TransactionContextI
 				fmt.Errorf("Invalid medicament name")
 			}
 		} else {
-			medicamentsUnmodified = append(medicamentsUnmodified, medicament)
+			medicamentsUnmodified = append(medicamentsUnmodified, med)
 		}
 	}
 
@@ -545,7 +545,7 @@ func (s *SmartContract) UpdateStock(ctx contractapi.TransactionContextInterface,
 			medicament = med
 			found = true
 		} else {
-			medicamentsUnmodified = append(medicamentsUnmodified, medicament)
+			medicamentsUnmodified = append(medicamentsUnmodified, med)
 		}
 	}
 
@@ -554,8 +554,8 @@ func (s *SmartContract) UpdateStock(ctx contractapi.TransactionContextInterface,
 	} else {
 		medicament.Quantity--
 		medicamentsUnmodified = append(medicamentsUnmodified, medicament)
-
-		medJSON, err := json.Marshal(medicamentsUnmodified)
+		stock.Medicaments = medicamentsUnmodified
+		medJSON, err := json.Marshal(stock)
 		if err != nil {
 			return err
 		}
@@ -616,9 +616,14 @@ func (s *SmartContract) ConsumePrescription(ctx contractapi.TransactionContextIn
 				return err
 			}
 
-			err = ctx.GetStub().PutState(strconv.Itoa(medicament_Code), assetJSON)
+			err = ctx.GetStub().PutState(_PatientID+args[0], assetJSON)
 			if err != nil {
 				return err
+			}
+
+			error := s.UpdateStock(ctx, _entityID, medicament_Code)
+			if error != nil {
+				return error
 			}
 
 			return nil
@@ -636,7 +641,7 @@ func (s *SmartContract) getNewStatus(ctx contractapi.TransactionContextInterface
 		newStatus := 0
 		return newStatus, nil
 	} else {
-		return _currentStatus, fmt.Errorf("Status can not be modified")
+		return _currentStatus, fmt.Errorf("Status can not be modified, already used prescription")
 	}
 }
 
@@ -797,7 +802,7 @@ func (s *SmartContract) ReadPrescription(ctx contractapi.TransactionContextInter
 		return nil, fmt.Errorf("failed to read from world state: %v", err)
 	}
 	if assetJSON == nil {
-		return nil, fmt.Errorf("the prescription %s does not exist", _PrescriptionID)
+		return nil, fmt.Errorf("this prescription does not exist")
 	}
 
 	var prescription Prescription
