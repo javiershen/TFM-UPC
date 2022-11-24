@@ -497,7 +497,7 @@ func (s *SmartContract) DispenseMedicament(ctx contractapi.TransactionContextInt
 	medicament.Status = status
 
 	//update dates
-	MedDates, err := s.UpdateDates(ctx, "ReceiveMedicament", medicament.Dates)
+	MedDates, err := s.UpdateDates(ctx, "DispenseMedicament", medicament.Dates)
 	if err != nil {
 		return err
 	}
