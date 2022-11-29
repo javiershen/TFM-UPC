@@ -2,6 +2,7 @@
 
 This is a project simulating a pharma industry use case where blockchain can be applied to fasten the medical supply process and prevent medicament falsification.
 
+
 ![Network](https://i.ibb.co/3v4KnGb/Screenshot-2022-11-17-at-21-40-03.png)
 
 ## Prerequisites
