@@ -55,9 +55,9 @@ In order to register the medicine, we execute the following command and select t
 
 ```
 $ ./userLabFunctions.sh
-1) 1- Register a medicament
-2) 2- Send a medicament to a pharmacy
-3) 3- Quit
+1) Register a medicament
+2) Send a medicament to a pharmacy
+3) Quit
 Which of the following actions you want to do: 1
 ```
 
@@ -65,12 +65,12 @@ Once we selected the option, we have to introduce the medicine data: Medicine Na
 
 ### Read created medicine / Read all users / Read all medicines
 
-Once we have the medicine registered, and logged in with the admin user, we can check its information and also the information about all the medicines and users related to the pharmacy.
+Once we have the medicine registered, and logged in with the admin user, we can check its information and also the information about all the medicines and users related to the lab.
 
 ```
 $ ./adminLabFunctions.sh
-1) 1- Read all medicaments    3) 3- Read a medicament info
-2) 2- Read all users          4) 4- Quit
+1) Read all medicaments    3) Read a medicament info
+2) Read all users          4) Quit
 ```
 
 ### Send medicine to pharmacy
@@ -91,9 +91,19 @@ When the medicine is received by the pharmacy. The pharmacy, throught a pharmacy
 
 ```
 $ ./userPharmacyFunctions.sh
-1) 1- Receive a medicament   3) 3- Use prescription
-2) 2- Dispense a medicament  4) 4- Quit
+1) Receive a medicament   3) Use prescription
+2) Dispense a medicament  4) Quit
 Which of the following actions you want to do: 1
+```
+
+### Get pharmacy stock / Read received medicine / Read all users / Read all medicines
+
+With the pharmacy admin user we can check information about the pharmacy stock and also information about the owned medicines and users related to the pharmacy.
+
+```
+$ ./adminPharmacyFunctions.sh
+1) Get pharmacy Stock      3) Read all medicaments       5) Quit
+2) Read all users          4) Read a medicament info 
 ```
 
 ### Create medicine prescription
@@ -104,9 +114,9 @@ To do so, first we will have to log in with a member of the hospital (user or ad
 
 ```
 $ ./userSanitaryFunctions.sh
-1) 1- Generate prescription
-2) 2- See prescription
-3) 3- Quit
+1) Generate prescription
+2) See prescription
+3) Quit
 Which of the following actions you want to do: 1
 ```
 
@@ -116,9 +126,9 @@ Once the prescription is generated and received at the channel, the patient will
 
 ```
 $ ./userPharmacyFunctions.sh
-1) 1- Receive a medicament
-2) 2- Use prescription and dispense medicament
-3) 3- Quit
+1) Receive a medicament
+2) Use prescription and dispense medicament
+3) Quit
 Which of the following actions you want to do: 2
 ```
 
